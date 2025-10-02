@@ -995,6 +995,62 @@ double compute_UBFreq_BeBe(const int& n, const double& alpha_lev, const double& 
 	return res;				
 }
 
+// [[Rcpp::export]]
+double compute_UB_intersection(const int& n, const double& alpha_lev, const double& beta_lev, const double& Shat)
+{
+	if(n <= 0)
+		throw std::runtime_error("Error in compute_UB_intersection: n must be strictly positive ");
+	if(alpha_lev <= 0 || alpha_lev >= 1)
+		throw std::runtime_error("Error in compute_UB_intersection: alpha_lev must be in (0,1) ");
+	if( beta_lev <= 0 )
+		throw std::runtime_error("Error in compute_UB_intersection: beta_lev must be strictly positive");
+	if( (1.0 - alpha_lev + beta_lev) <= 0 )
+		throw std::runtime_error("Error in compute_UB_intersection: 1.0 - alpha_lev + beta_lev must be strictly positive");
+	if(Shat < 0)
+		throw std::runtime_error("Error in compute_UB_intersection: Shat must be positive ");
+
+	double Warg = (double)n/(-std::log(1.0 - alpha_lev + beta_lev)); 
+	Warg *= (  std::sqrt( (std::log(1.0/beta_lev))/(2.0*(double)n) ) + std::sqrt( (std::log(1.0/beta_lev))/(2.0*(double)n) + Shat ) ) *
+			(  std::sqrt( (std::log(1.0/beta_lev))/(2.0*(double)n) ) + std::sqrt( (std::log(1.0/beta_lev))/(2.0*(double)n) + Shat ) ) ;
+
+	if(Warg < 0)
+		throw std::runtime_error("Error in compute_UB_intersection: the argument of the Lambert W function can not be negative");
+
+	// UB = 1/n * W(..)
+	double res = gsl_sf_lambert_W0(Warg)/(double)n;
+	
+	return std::min(res,1.0);				
+}
+
+// [[Rcpp::export]]
+double compute_UB_rnorm(const int& n, const double& alpha_lev, const double& beta_lev, const int& r, const double& Shat)
+{
+	if(n <= 0)
+		throw std::runtime_error("Error in compute_UB_rnorm: n must be strictly positive ");
+	if(alpha_lev <= 0 || alpha_lev >= 1)
+		throw std::runtime_error("Error in compute_UB_rnorm: alpha_lev must be in (0,1) ");
+	if( beta_lev <= 0 )
+		throw std::runtime_error("Error in compute_UB_rnorm: beta_lev must be strictly positive");
+	if( (alpha_lev - beta_lev) <= 0 )
+		throw std::runtime_error("Error in compute_UB_rnorm:  alpha_lev + beta_lev must be strictly positive");
+	if(Shat < 0)
+		throw std::runtime_error("Error in compute_UB_rnorm: Shat must be positive ");
+	if(r <= 0)
+		throw std::runtime_error("Error in compute_UB_rnorm: r must be strictly positive ");
+	
+	double Sstar = (  std::sqrt( (std::log(1.0/beta_lev))/(2.0*(double)n) ) + std::sqrt( (std::log(1.0/beta_lev))/(2.0*(double)n) + Shat ) ) *
+				   (  std::sqrt( (std::log(1.0/beta_lev))/(2.0*(double)n) ) + std::sqrt( (std::log(1.0/beta_lev))/(2.0*(double)n) + Shat ) ) ;
+	
+	double res{ 0 };
+	res += 1.0/(double)r * ( std::log(Sstar) - std::log(alpha_lev - beta_lev) ) ;
+	res += (double)(r-1)/(double)r * ( std::log( (double)(r-1) ) - std::log( (double)(n+r-1) ) );
+	res += (double)(n)/(double)r * ( std::log( (double)(n) ) - std::log( (double)(n+r-1) ) );
+	res = std::exp(res);
+
+	return std::min(res,1.0);			
+}
+
+
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 //	Features - Poisson process
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1104,15 +1160,15 @@ double log_efpfBeBePois( const int& n, const int& Kn, const std::vector<int>& n_
 
 	// Check domain
 	if(c <= -alpha){
-		Rcpp::Rcout<<"Caso proibito (c < -alpha)"<<std::endl;
+		//Rcpp::Rcout<<"Caso proibito (c < -alpha)"<<std::endl;
 		return -std::exp(20);
 	}
 	if(alpha < 0 || alpha > 1 - 1e-16){
-		Rcpp::Rcout<<"Caso proibito (alpha < 0 or alpha > 1)"<<std::endl;
+		//Rcpp::Rcout<<"Caso proibito (alpha < 0 or alpha > 1)"<<std::endl;
 		return -std::exp(20);
 	}
 	if(gamma <= 0){
-		Rcpp::Rcout<<"Caso proibito (gamma <= 0)"<<std::endl;
+		//Rcpp::Rcout<<"Caso proibito (gamma <= 0)"<<std::endl;
 		return -std::exp(20);
 	}
 
