@@ -588,6 +588,10 @@ double log_eppfPYP( const int& n, const int& Kn, const std::vector<int>& n_j,
 		Rcpp::Rcout<<"Caso proibito (theta < -alpha)"<<std::endl;
 		return -std::exp(20);
 	}
+	if(theta <= 0.0){
+		Rcpp::Rcout<<"Caso proibito (theta <= 0.0)"<<std::endl;
+		return -std::exp(20);
+	}
 	if(alpha < 0 || alpha > 1 - 1e-16){
 		Rcpp::Rcout<<"Caso proibito (alpha < 0 or alpha > 1)"<<std::endl;
 		return -std::exp(20);
