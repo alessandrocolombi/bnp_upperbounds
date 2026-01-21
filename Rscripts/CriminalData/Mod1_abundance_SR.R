@@ -3,7 +3,7 @@ wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[1] # <--- modify here
+choose_wd = wd_vec[3] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData/")
 setwd(wd)
 
@@ -27,14 +27,14 @@ Kn = length(Nj_locale)
 
 
 # Options  --------------------------------------------------------
-eps_grid = seq(0.001,0.1,length.out =  70)
+eps_grid = seq(0.001,0.2,length.out =  34*5)
 cov_grid = 1 - eps_grid
 alpha = 0.05
 M_max = 200
 nstart = 10
 
 seed0 = 4224
-num_cores = 5
+num_cores = 34
 Nrep = 20
 
 # Run) Mmax-based  --------------------------------------------------------
