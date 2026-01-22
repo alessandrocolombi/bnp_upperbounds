@@ -14,20 +14,22 @@ suppressWarnings(suppressPackageStartupMessages(library(doSNOW)))
 suppressWarnings(suppressPackageStartupMessages(library(progress)))
 source("../../R/Rfunctions.R")
 Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
+source("../../../BinomialCIs/R/Rfunctions.R")
+Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 # Colors ------------------------------------------------------------------
 
 
 # Load --------------------------------------------------------------------
 
-load("Locale.Rdat")
-Locale_temp = Locale[-which(Locale == "OUT" | Locale == "MISS")]
-data = Locale_temp
-Nj_locale = table(Locale_temp)
-Nj_locale = sort(Nj_locale, decreasing = TRUE)
+load("RawDataInc.Rdat")
+n = nrow(A)
+Kn = ncol(A)
+N_j = colSums(A)
+names(N_j) = as.character(1:Kn)
 
-n = sum(Nj_locale)
-Kn = length(Nj_locale)
+seed = 34231
+set.seed(seed)
 
 
 # Options  --------------------------------------------------------
@@ -42,12 +44,12 @@ num_cores = 34
 Nrep = 20
 
 # Run) Mmax-based  --------------------------------------------------------
-res = SRabu_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha, M_max)
-save(res, file = "save/Mod1Abu_SRMmax.Rdat")
+res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
+save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
-res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
-save(res_cov, file = "save/Mod1Abu_SRcov.Rdat")
+# res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
+# save(res_cov, file = "save/Mod2_Inc4Meetings_SRMcov.Rdat")
 
 # Plot --------------------------------------------------------------------
 stop_here = TRUE
@@ -58,8 +60,8 @@ ygrids[[1]]<-ygrids[[2]]<-ygrids[[3]]<-eps_grid
 ygrids[[4]]<-(1-cov_grid)
 
 if(!stop_here){
-  load("save/Mod1Abu_SRMmax.Rdat")
-  load("save/Mod1Abu_SRcov.Rdat")
+  load("save/Mod2_Inc4Meetings_SRMmax.Rdat")
+  load("save/Mod2_Inc4Meetings_SRMcov.Rdat")
   
   res_list = lapply(res, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
   res_cov_list = lapply(res_cov, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))

@@ -173,7 +173,41 @@ axis(3, at = 1:n_people,
      labels = 1:n_people,
      cex.axis = 0.7); mtext("People", side = 3, line = 2)
 
+## Plot Binomial counts -----------------------------------------------------------
+### Mod2 - Inc.4.meetings -----------------------------------------------------------
+n = nrow(A)
+Kn = ncol(A)
+N_j = colSums(A)
+N_j = sort(N_j, decreasing = TRUE)
+names(N_j) = sapply(N_j, function(x) paste0("M",x))
+bp1 = barplot(N_j)
 
+par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0))
+barplot( height = N_j, 
+         names.arg = "", las = 2, col = "darkred", border = NA,
+         main = " ", ylab = "#obs.", yaxt = "n" )
+axis( side = 2, at = seq(0, max(N_j), by=2), las = 1)
+text( x = bp1, y = -1, 
+      labels = names(N_j), cex = 0.2,
+      srt = 0, adj = 0.5, xpd = TRUE)
+
+
+### Mod2 - Inc.4.people -----------------------------------------------------------
+n = ncol(A)
+Kn = nrow(A)
+N_j = rowSums(A)
+N_j = sort(N_j, decreasing = TRUE)
+names(N_j) = sapply(N_j, function(x) paste0(""))
+bp1 = barplot(N_j)
+
+par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0))
+barplot( height = N_j, 
+         names.arg = "", las = 2, col = "darkred", border = NA,
+         main = " ", ylab = "#obs.", yaxt = "n" )
+axis( side = 2, at = seq(0, max(N_j), by=2), las = 1)
+text( x = bp1, y = -1, 
+      labels = names(N_j), cex = 0.2,
+      srt = 0, adj = 0.5, xpd = TRUE)
 
 # Accumulation curves -----------------------------------------------------
 seed = 42

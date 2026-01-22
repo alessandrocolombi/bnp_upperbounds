@@ -307,6 +307,247 @@ SRabu_grid = function( eps_grid, data, nstart,
 }
 
 
+
+SRinc_grid_multiple_run <- function(eps, data, nstart, seed0, Nrep, alpha)
+{
+  ## Functions
+  suppressWarnings(suppressPackageStartupMessages(library(tibble)))
+  suppressWarnings(suppressPackageStartupMessages(library(parallel)))
+  suppressWarnings(suppressPackageStartupMessages(library(doSNOW)))
+  suppressWarnings(suppressPackageStartupMessages(library(progress)))
+  suppressWarnings(suppressPackageStartupMessages(library(VGAM)))
+  source("../R/Rfunctions.R")
+  Rcpp::sourceCpp("../src/RcppFunctions.cpp")
+  source("../../../BinomialCIs/R/Rfunctions.R")
+  Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
+  
+  
+  set.seed(seed0)
+  seeds = sample(1:999999, size = Nrep)
+  res = matrix(nrow = Nrep, ncol = 5)
+  colnames(res) = c("3IBP","MixPois","MixBin","Freq.Bdd","Freq.Ubd")
+  
+  for(ii in 1:Nrep){
+    seed = seeds[ii]
+    res[ii,] = SRinc_grid_single_run(eps, data, nstart, seed, alpha)
+  }
+  return(res)
+}
+
+SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
+{
+  set.seed(seed) # set seed
+  RmaxFD = 50; Rmax = 100; beta = 1e-5;
+  var_gamma = 10; var_nb    = 10
+  
+  n = nrow(data) # total num. obs.
+  Kn = ncol(data) # total num. distinct
+  ordered_idx = sample(1:n, size = n) # choose ordering of obs.
+  
+  if(nstart >= (n-1))
+    stop("nstart must be smaller than n-1")
+  
+  # Stopping flags and outputs
+  stopped_3IBP   <- FALSE
+  stopped_MixPois  <- FALSE
+  stopped_MixBin  <- FALSE
+  stopped_FreqBdd <- FALSE
+  stopped_FreqUbd <- FALSE
+  Nstop_3IBP     <- NA_integer_
+  Nstop_MixPois    <- NA_integer_
+  Nstop_MixBin    <- NA_integer_
+  Nstop_FreqBdd   <- NA_integer_
+  Nstop_FreqUbd   <- NA_integer_
+  
+  ## ------------------------------------------------------------
+  ## Run loop up to n_max = n
+  ## ------------------------------------------------------------
+  n_max = n
+  ni = 2
+  for(ni in nstart:(n_max-1)) {
+    # Allow for a non-multiple n_max if needed
+    remaining <- n_max - ni
+    if (remaining <= 0L) break
+    
+    ## ---- Observed vector (true + error species) ----
+    idx_species_i = ordered_idx[1:ni] # select obs. up to time ni
+    data_i = data[idx_species_i,] 
+    Nj_i = colSums(data_i) # compute frequencies
+    Nj_i = Nj_i[Nj_i > 0]
+    Kobs_i = length(which(Nj_i > 0))
+    if( Kobs_i == 0L) next   # nothing observed yet
+    
+    ## ---- 5.1 3IBP (on observed data) ----
+    if (!stopped_3IBP) {
+      # Param. estimation (3 params PP)
+      start_params <- c(alpha = 0.1, gamma= 1, u = 1)
+      fit <- optim(par = start_params, fn = llik_PP3Parm, 
+                   method = "L-BFGS-B",
+                   n = ni, Kn = Kobs_i, data_obs = Nj_i,
+                   lower = c(1e-16, 1e-16, 1e-16), 
+                   upper = c(1-1e-10, Inf, Inf)) 
+      alpha_mle = fit$par[1]
+      gamma_mle = fit$par[2]
+      c_mle     = fit$par[3] - alpha_mle
+      
+      # Upper bound (3 params PP)
+      if( any(is.na(fit$par)) || any(fit$par < 0) ){
+        ub3IBP = 1
+      }else{
+        ub3IBP = exp(compute_log_UBMarkov_BeBePois(Rmax, alpha_mle, c_mle, gamma_mle, ni, alpha ))
+        # ub3IBP = 1
+      }
+      ub3IBP <- min(1,ub3IBP)
+      if (!is.na(ub3IBP) && ub3IBP < eps) {
+        stopped_3IBP <- TRUE
+        Nstop_3IBP   <- ni
+      }
+      # stopped_3IBP = TRUE
+    }
+    
+    ## ---- 5.2 MixPois (on observed data) ----
+    if (!stopped_MixPois) {
+      # Param. estimation (3 params PP)
+      start_params <- c(alpha = 0.1, u = 1, mu_gamma = 1)
+      fit <- optim(par = start_params, fn = llik_MixPois,
+                   method = "L-BFGS-B",
+                   n = ni, Kn = Kobs_i, data_obs = Nj_i, var_gamma = var_gamma,
+                   lower = c(1e-16, 1e-16, 1e-16), upper = c(1-1e-10, Inf, Inf))
+      alpha_mle = fit$par[1]
+      c_mle = fit$par[2] - alpha_mle
+      mugamma_mle = fit$par[3]
+      
+      gamma_hyperparams = gamma_shape_rate(mugamma_mle,var_gamma)
+      u = gamma_hyperparams$shape
+      v = gamma_hyperparams$rate
+      
+      
+      # Upper bound (3 params PP)
+      if( any(is.na( c(alpha_mle, c_mle,u,v) )) || any(c(alpha_mle, c_mle,u,v) < 0) ){
+        ubMixPois = 1
+      }else{
+        ubMixPois = exp(compute_log_UBMarkov_BeBeMixPois( Rmax, alpha_mle, c_mle, ni, Kobs_i, u, v, alpha))
+      }
+      ubMixPois <- min(1,ubMixPois)
+      if (!is.na(ubMixPois) && ubMixPois < eps) {
+        stopped_MixPois <- TRUE
+        Nstop_MixPois   <- ni
+      }
+      # stopped_MixPois = TRUE
+    }
+    
+    ## ---- 5.3 MixBin (on observed data) ----
+    if (!stopped_MixBin) {
+      # Param. estimation (3 params PP)
+      start_params <- c(a = 1, b = 1, mu_nb = 1)
+      fit <- optim(par = start_params, fn = llik_MixBin,
+                   method = "L-BFGS-B",
+                   n = ni, Kn = Kobs_i, data_obs = Nj_i, var_nb = var_nb,
+                   lower = c(1e-10, 1e-10, 1e-10), upper = c(Inf, Inf, var_nb-1e-10))
+      a_mle = fit$par[1]
+      b_mle = fit$par[2] 
+      munb_mle = fit$par[3]
+      
+      nb_hyperparams = NegBin_params(munb_mle,var_nb)
+      r_nb = nb_hyperparams$r
+      p_nb = nb_hyperparams$p
+      
+      if( any(is.na(c(a_mle,b_mle,r_nb,p_nb))) || any(c(a_mle,b_mle,r_nb,p_nb) < 0) ){
+        ubMixBin = 1
+      }else{
+        ubMixBin = exp(compute_log_UBMarkov_BeBeMixNBin( Rmax, a_mle, b_mle, ni, Kobs_i, r_nb, p_nb, alpha))
+        # U_FD = 1
+      }
+      ubMixBin <- min(1,ubMixBin)
+      if (!is.na(ubMixBin) && ubMixBin < eps) {
+        stopped_MixBin <- TRUE
+        Nstop_MixBin   <- ni
+      }
+      # stopped_MixBin = TRUE
+    }
+    
+    ## ---- 5.4 Freq.Bdd (on observed data) ----
+    if (!stopped_FreqBdd) {
+      b_n <- log(ni)
+      Mguess = 10 * Kobs_i
+      Nj_guess = c(Nj_i, rep(0,Mguess - length(Nj_i) ))
+      ubFreqBdd <- compute_UB_analytical(ni, Nj_guess, Mguess, b_n, alpha, FALSE)
+      ubFreqBdd = min(1,ubFreqBdd); ubFreqBdd = max(0,ubFreqBdd)
+      if (!is.na(ubFreqBdd) && ubFreqBdd <= eps) {
+        stopped_FreqBdd <- TRUE
+        Nstop_FreqBdd   <- ni
+      }
+    }
+    
+    ## ---- 5.5 Freq.Ubd (on observed data) ----
+    if (!stopped_FreqUbd) {
+      Shat  <- sum(Nj_i) / ni
+      Sstar <- ( sqrt( -log(beta) / (2 * ni) ) +
+                   sqrt( Shat + (-log(beta) / (2 * ni)) ) )^2
+      r_n   <- log( Sstar / (-log(1 - alpha + beta)) ) + log(ni) - log(log(ni))
+      ubFreqUbd <- compute_UB_rnorm(ni, alpha, beta, r_n, Shat)
+      ubFreqUbd = min(1,ubFreqUbd); ubFreqUbd = max(0,ubFreqUbd)
+      if (!is.na(ubFreqUbd) && ubFreqUbd <= eps) {
+        stopped_FreqUbd <- TRUE
+        Nstop_FreqUbd   <- ni
+      }
+    }
+    
+    # Early exit if all four rules have stopped
+    if (stopped_3IBP && stopped_MixPois && stopped_MixBin && stopped_FreqBdd && stopped_FreqUbd) break
+  }
+  
+  ## ------------------------------------------------------------
+  ## Post-loop: handle rules that *never* stopped by n_max
+  ## ------------------------------------------------------------
+  if (!stopped_3IBP) {
+    stopped_3IBP <- n_max
+  }
+  if (!stopped_MixPois) {
+    stopped_MixPois <- n_max
+  }
+  if (!stopped_MixBin) {
+    stopped_MixBin <- n_max
+  }
+  if (!stopped_FreqBdd) {
+    stopped_FreqBdd <- n_max
+  }
+  if (!stopped_FreqUbd) {
+    stopped_FreqUbd <- n_max
+  }
+  
+  return( c(stopped_3IBP,stopped_MixPois,stopped_MixBin,stopped_FreqBdd,stopped_FreqUbd) )
+}
+
+
+SRinc_grid = function( eps_grid, data, nstart,
+                       Nrep, num_cores, seed0,
+                       alpha = 0.05)
+{
+  Lgrid = length(eps_grid) # grid length
+  res_list = vector("list",Lgrid)
+  res_list = lapply(res_list, function(x) {
+    y = matrix(nrow = Nrep, ncol = 5)
+    colnames(y) = c("3IBP","MixPois","MixBin","Freq.Bdd","Freq.Ubd")
+    y
+  }  )
+  
+  
+  ## Parallel run (no prints allowed)
+  cluster <- makeCluster(num_cores, type = "SOCK")
+  doSNOW::registerDoSNOW(cluster)
+  clusterExport(cluster, list("SRinc_grid_single_run"),
+                envir = environment())
+  res_list = parLapply( cl = cluster, x = eps_grid,
+                        fun = SRinc_grid_multiple_run,
+                        data = data, nstart = nstart,
+                        alpha = alpha,
+                        seed0 = seed0, Nrep = Nrep)
+  stopCluster(cluster)
+  
+  return(res_list)
+}
+
 # Coverage based stopping rules -------------------------------------------
 
 ## Coverages stopping rules

@@ -14,6 +14,7 @@ echo "Job started on $(hostname) at $(date)"
 source /g100/home/userexternal/acolombi/miniconda3/etc/profile.d/conda.sh
 conda activate r_env
 
+Rscript Rscripts/CriminalData/Mod2_Inc4meetings_SR.R
 Rscript Rscripts/CriminalData/Mod1_abundance_SR.R
 
 echo "Job finished at $(date)"
