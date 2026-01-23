@@ -34,7 +34,7 @@ set.seed(seed)
 
 
 # Options  --------------------------------------------------------
-eps_grid = c(0.001, seq(0.04,0.1,length.out =  (34*5-1)) )  
+eps_grid = c(0.001, seq(0.04,0.1,length.out =  (34*5-1)) )
 cov_grid = 1 - eps_grid
 alpha = 0.05
 M_max = 200

@@ -348,16 +348,8 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
     stop("nstart must be smaller than n-1")
   
   # Stopping flags and outputs
-  stopped_3IBP   <- FALSE
-  stopped_MixPois  <- FALSE
-  stopped_MixBin  <- FALSE
-  stopped_FreqBdd <- FALSE
-  stopped_FreqUbd <- FALSE
-  Nstop_3IBP     <- NA_integer_
-  Nstop_MixPois    <- NA_integer_
-  Nstop_MixBin    <- NA_integer_
-  Nstop_FreqBdd   <- NA_integer_
-  Nstop_FreqUbd   <- NA_integer_
+  stopped_3IBP <- stopped_MixPois <- stopped_MixBin <- stopped_FreqBdd <- stopped_FreqUbd <- FALSE
+  Nstop_3IBP <- Nstop_MixPois <- Nstop_MixBin <- Nstop_FreqBdd <- Nstop_FreqUbd <- NA_integer_
   
   ## ------------------------------------------------------------
   ## Run loop up to n_max = n
@@ -487,6 +479,11 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
       r_n   <- log( Sstar / (-log(1 - alpha + beta)) ) + log(ni) - log(log(ni))
       ubFreqUbd <- compute_UB_rnorm(ni, alpha, beta, r_n, Shat)
       ubFreqUbd = min(1,ubFreqUbd); ubFreqUbd = max(0,ubFreqUbd)
+      
+      # xx = data.frame("eps" = eps,"ni" = ni, "ubFreqUbd" = ubFreqUbd)
+      # trimmed_eps = get_first3digits(eps,3)
+      # save(xx, file = paste0("temp/","eps",trimmed_eps,"_ni",ni,".Rdat"))
+      
       if (!is.na(ubFreqUbd) && ubFreqUbd <= eps) {
         stopped_FreqUbd <- TRUE
         Nstop_FreqUbd   <- ni
@@ -516,7 +513,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
     stopped_FreqUbd <- n_max
   }
   
-  return( c(stopped_3IBP,stopped_MixPois,stopped_MixBin,stopped_FreqBdd,stopped_FreqUbd) )
+  return( c(Nstop_3IBP,Nstop_MixPois,Nstop_MixBin,Nstop_FreqBdd,Nstop_FreqUbd) )
 }
 
 SRinc_grid = function( eps_grid, data, nstart,
