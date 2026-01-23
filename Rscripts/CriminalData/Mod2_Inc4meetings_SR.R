@@ -23,6 +23,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Load --------------------------------------------------------------------
 
 load("RawDataInc.Rdat")
+data = A
 n = nrow(A)
 Kn = ncol(A)
 N_j = colSums(A)
@@ -41,11 +42,11 @@ nstart = 10
 
 seed0 = 4224
 num_cores = 34
-Nrep = 20
+Nrep = 50
 
 # Run) Mmax-based  --------------------------------------------------------
 res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
-save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
+# save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)

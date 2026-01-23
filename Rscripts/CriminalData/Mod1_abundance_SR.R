@@ -39,7 +39,7 @@ nstart = 10
 
 seed0 = 4224
 num_cores = 34
-Nrep = 20
+Nrep = 50
 
 # Run) Mmax-based  --------------------------------------------------------
 res = SRabu_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha, M_max)

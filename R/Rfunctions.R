@@ -147,8 +147,8 @@ SRabu_grid_multiple_run <- function(eps, data, nstart, seed0, Nrep, alpha, M_max
   suppressWarnings(suppressPackageStartupMessages(library(doSNOW)))
   suppressWarnings(suppressPackageStartupMessages(library(progress)))
   suppressWarnings(suppressPackageStartupMessages(library(VGAM)))
-  source("../R/Rfunctions.R")
-  Rcpp::sourceCpp("../src/RcppFunctions.cpp")
+  source("../../R/Rfunctions.R")
+  Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
   
   
   set.seed(seed0)
@@ -316,8 +316,8 @@ SRinc_grid_multiple_run <- function(eps, data, nstart, seed0, Nrep, alpha)
   suppressWarnings(suppressPackageStartupMessages(library(doSNOW)))
   suppressWarnings(suppressPackageStartupMessages(library(progress)))
   suppressWarnings(suppressPackageStartupMessages(library(VGAM)))
-  source("../R/Rfunctions.R")
-  Rcpp::sourceCpp("../src/RcppFunctions.cpp")
+  source("../../R/Rfunctions.R")
+  Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
   source("../../../BinomialCIs/R/Rfunctions.R")
   Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
   
@@ -519,7 +519,6 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
   return( c(stopped_3IBP,stopped_MixPois,stopped_MixBin,stopped_FreqBdd,stopped_FreqUbd) )
 }
 
-
 SRinc_grid = function( eps_grid, data, nstart,
                        Nrep, num_cores, seed0,
                        alpha = 0.05)
@@ -536,6 +535,7 @@ SRinc_grid = function( eps_grid, data, nstart,
   ## Parallel run (no prints allowed)
   cluster <- makeCluster(num_cores, type = "SOCK")
   doSNOW::registerDoSNOW(cluster)
+  clusterCall(cluster, getwd)
   clusterExport(cluster, list("SRinc_grid_single_run"),
                 envir = environment())
   res_list = parLapply( cl = cluster, x = eps_grid,
