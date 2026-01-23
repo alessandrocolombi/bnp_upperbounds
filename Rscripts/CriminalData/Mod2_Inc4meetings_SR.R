@@ -46,7 +46,7 @@ Nrep = 50
 
 # Run) Mmax-based  --------------------------------------------------------
 res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
-# save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
+save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
