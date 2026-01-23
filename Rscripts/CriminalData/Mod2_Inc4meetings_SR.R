@@ -34,7 +34,7 @@ set.seed(seed)
 
 
 # Options  --------------------------------------------------------
-eps_grid = c(0.001, seq(0.04,0.1,length.out =  (34*5-1)) )
+eps_grid = c(0.001, seq(0.04,0.2,length.out =  (34*5-1)) )
 cov_grid = 1 - eps_grid
 alpha = 0.05
 M_max = 200
@@ -62,6 +62,7 @@ if(!stop_here){
   load("save/Mod2_Inc4Meetings_SRMmax.Rdat")
   # load("save/Mod2_Inc4Meetings_SRMcov.Rdat")
   
+  res = lapply(res, function(x) {x[which(is.na(x))] = n; x} )
   res_list = lapply(res, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
   # res_cov_list = lapply(res_cov, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
   res_arr <- simplify2array(res_list) # 3 x 3 x length(eps_grid)

@@ -498,19 +498,19 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
   ## Post-loop: handle rules that *never* stopped by n_max
   ## ------------------------------------------------------------
   if (!stopped_3IBP) {
-    stopped_3IBP <- n_max
+    Nstop_3IBP <- n_max
   }
   if (!stopped_MixPois) {
-    stopped_MixPois <- n_max
+    Nstop_MixPois <- n_max
   }
   if (!stopped_MixBin) {
-    stopped_MixBin <- n_max
+    Nstop_MixBin <- n_max
   }
   if (!stopped_FreqBdd) {
-    stopped_FreqBdd <- n_max
+    Nstop_FreqBdd <- n_max
   }
   if (!stopped_FreqUbd) {
-    stopped_FreqUbd <- n_max
+    Nstop_FreqUbd <- n_max
   }
   
   return( c(Nstop_3IBP,Nstop_MixPois,Nstop_MixBin,Nstop_FreqBdd,Nstop_FreqUbd) )
