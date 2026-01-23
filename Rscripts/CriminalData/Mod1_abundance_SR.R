@@ -3,7 +3,7 @@ wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[3] # <--- modify here
+choose_wd = wd_vec[1] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData/")
 setwd(wd)
 
@@ -42,12 +42,12 @@ num_cores = 34
 Nrep = 50
 
 # Run) Mmax-based  --------------------------------------------------------
-res = SRabu_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha, M_max)
-save(res, file = "save/Mod1Abu_SRMmax.Rdat")
+# res = SRabu_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha, M_max)
+# save(res, file = "save/Mod1Abu_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
-res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
-save(res_cov, file = "save/Mod1Abu_SRcov.Rdat")
+# res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
+# save(res_cov, file = "save/Mod1Abu_SRcov.Rdat")
 
 # Plot --------------------------------------------------------------------
 stop_here = TRUE
@@ -59,31 +59,33 @@ ygrids[[4]]<-(1-cov_grid)
 
 if(!stop_here){
   load("save/Mod1Abu_SRMmax.Rdat")
-  load("save/Mod1Abu_SRcov.Rdat")
+  # load("save/Mod1Abu_SRcov.Rdat")
   
   res_list = lapply(res, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
-  res_cov_list = lapply(res_cov, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
+  # res_cov_list = lapply(res_cov, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
   res_arr <- simplify2array(res_list) # 3 x 3 x length(eps_grid)
-  res_cov_arr <- simplify2array(res_cov_list) # 3 x 1 x length(eps_grid)
-  res_all <- array(
-    do.call(cbind, lapply(seq_len(dim(res_arr)[3]), function(k)
-      cbind(res_arr[,,k], res_cov_arr[,,k])
-    )),
-    dim = c(3, 4, 70)
-  )# 3 x 4 x length(eps_grid)
+  # res_cov_arr <- simplify2array(res_cov_list) # 3 x 1 x length(eps_grid)
+  # res_all <- array(
+  #   do.call(cbind, lapply(seq_len(dim(res_arr)[3]), function(k)
+  #     cbind(res_arr[,,k], res_cov_arr[,,k])
+  #   )),
+  #   dim = c(3, 4, 70)
+  # )# 3 x 4 x length(eps_grid)
+  res_all = res_arr
   
-  par(mfrow = c(1,1),bty = "l",  mgp=c(1.5,0.5,0), mar = c(2.5,2.5,1,0))
+  par(mfrow = c(1,1),bty = "l",  mgp=c(1.5,0.5,0), mar = c(2.5,2.5,1,0), las = 1)
   plot(0,0,type = "n", main = "", ylab = "Nstop",
        xlim = range(eps_grid), ylim = c(0,n), 
-       xlab = paste0(expression(epsilon)," / 1 - coverage") )
-  for(i in 1:4){
+       # xlab = paste0(expression(epsilon)," / 1 - coverage") )
+       xlab = paste0(expression(epsilon)) )
+  for(i in 1:3){
     points(y = res_all[2,i,], x = ygrids[[i]], 
            type = "l", lty = ltype[i], 
            lwd = 3, col = mycol[i], pch = 16)
   }
   # abline(v = 0.05, lty = 2, col = "red")
-  legend("bottomleft", c("FD","PYP","Freq","Cov"), 
-         col = mycol, lty = ltype, lwd = 3)
+  legend("bottomleft", c("FD","PYP","Freq"),#,"Cov"), 
+         col = mycol[1:3], lty = ltype, lwd = 3)
   
 }
 

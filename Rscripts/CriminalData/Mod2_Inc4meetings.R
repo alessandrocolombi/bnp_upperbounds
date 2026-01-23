@@ -21,6 +21,8 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Load --------------------------------------------------------------------
 
 load("RawDataInc.Rdat")
+# ni = 50
+# A = A[sample(1:n, size = ni),]
 n = nrow(A)
 Kn = ncol(A)
 N_j = colSums(A)
@@ -111,3 +113,4 @@ ubMixBin
 ## 3IBP ------------------------------------------------------------
 ## Mixed-Poisson ------------------------------------------------------------
 ## Mixed-Binomial ------------------------------------------------------------
+c(ub3IBP,ubMixPois,ubMixBin,ubFreqBdd,ubFreqUbd)

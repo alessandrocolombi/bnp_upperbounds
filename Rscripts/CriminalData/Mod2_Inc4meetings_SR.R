@@ -34,7 +34,7 @@ set.seed(seed)
 
 
 # Options  --------------------------------------------------------
-eps_grid = seq(0.001,0.2,length.out =  34*5)
+eps_grid = c(0.001, seq(0.04,0.1,length.out =  (34*5-1)) )  
 cov_grid = 1 - eps_grid
 alpha = 0.05
 M_max = 200
@@ -46,7 +46,7 @@ Nrep = 50
 
 # Run) Mmax-based  --------------------------------------------------------
 res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
-save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
+# save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
@@ -54,38 +54,38 @@ save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
 
 # Plot --------------------------------------------------------------------
 stop_here = TRUE
-ltype = c(1,1,1,2)
-mycol = c("darkblue","darkred","darkorange","deeppink")
-ygrids = vector("list",4)
-ygrids[[1]]<-ygrids[[2]]<-ygrids[[3]]<-eps_grid
-ygrids[[4]]<-(1-cov_grid)
-
+ltype = c(1,1,1,1,1)
+mycol = c("red","darkred","darkblue","darkorange","chocolate")
+ygrids = vector("list",5)
+ygrids[[1]]<-ygrids[[2]]<-ygrids[[3]]<-ygrids[[4]]<-ygrids[[5]]<-eps_grid
 if(!stop_here){
   load("save/Mod2_Inc4Meetings_SRMmax.Rdat")
-  load("save/Mod2_Inc4Meetings_SRMcov.Rdat")
+  # load("save/Mod2_Inc4Meetings_SRMcov.Rdat")
   
   res_list = lapply(res, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
-  res_cov_list = lapply(res_cov, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
+  # res_cov_list = lapply(res_cov, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
   res_arr <- simplify2array(res_list) # 3 x 3 x length(eps_grid)
-  res_cov_arr <- simplify2array(res_cov_list) # 3 x 1 x length(eps_grid)
-  res_all <- array(
-    do.call(cbind, lapply(seq_len(dim(res_arr)[3]), function(k)
-      cbind(res_arr[,,k], res_cov_arr[,,k])
-    )),
-    dim = c(3, 4, 70)
-  )# 3 x 4 x length(eps_grid)
+  # res_cov_arr <- simplify2array(res_cov_list) # 3 x 1 x length(eps_grid)
+  # res_all <- array(
+  #   do.call(cbind, lapply(seq_len(dim(res_arr)[3]), function(k)
+  #     cbind(res_arr[,,k], res_cov_arr[,,k])
+  #   )),
+  #   dim = c(3, 4, 70)
+  # )# 3 x 4 x length(eps_grid)
+  res_all = res_arr
   
-  par(mfrow = c(1,1),bty = "l",  mgp=c(1.5,0.5,0), mar = c(2.5,2.5,1,0))
+  par(mfrow = c(1,1),bty = "l",  mgp=c(1.5,0.5,0), mar = c(2.5,2.5,1,0), las = 1)
   plot(0,0,type = "n", main = "", ylab = "Nstop",
        xlim = range(eps_grid), ylim = c(0,n), 
-       xlab = paste0(expression(epsilon)," / 1 - coverage") )
-  for(i in 1:4){
+       xlab = paste0(expression(epsilon)) )
+       # xlab = paste0(expression(epsilon)," / 1 - coverage") )
+  for(i in 1:5){
     points(y = res_all[2,i,], x = ygrids[[i]], 
            type = "l", lty = ltype[i], 
            lwd = 3, col = mycol[i], pch = 16)
   }
   # abline(v = 0.05, lty = 2, col = "red")
-  legend("bottomleft", c("FD","PYP","Freq","Cov"), 
+  legend("topright", c("3IBP","MixPois","MixBin","Freq.Bdd","Freq.Ubd"), 
          col = mycol, lty = ltype, lwd = 3)
   
 }
