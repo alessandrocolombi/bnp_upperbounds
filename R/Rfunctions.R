@@ -706,3 +706,103 @@ NegBin_moments = function(r,p){
 NegBin_params = function(mu,sig2){
   list("p" = (mu)/sig2, "r" = (mu*mu)/(sig2-mu))
 }
+
+
+# Ferguson-Klass for beta process -----------------------------------------
+
+base_rnd <- function(n) runif(n)
+
+#' Ferguson-Klass sampler for the 3-parameter (stable) Beta process
+#'
+#' Parameters:
+#'   c     > 0            concentration / strength
+#'   sigma in [0,1)       discount
+#'   gamma > 0            
+#'   base_rnd(n)          function sampling n i.i.d. atom locations from normalized B0
+#'   eps                  stop when weights fall below eps (approximation)
+#'   n_grid               grid size for precomputing tail integral
+#'
+#' Returns:
+#'   list(w = weights in decreasing order, theta = sampled locations)
+fk_stable_beta_process <- function(c, sigma, gamma,
+                                   base_rnd,
+                                   eps = 1e-8,
+                                   n_grid = 20000L,
+                                   grid_min = 1e-12,
+                                   grid_max = 1 - 1e-12,
+                                   seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  
+  # ---- checks ----
+  stopifnot(is.numeric(c), length(c) == 1L, is.finite(c), c > 0)
+  stopifnot(is.numeric(sigma), length(sigma) == 1L, is.finite(sigma), sigma >= 0, sigma < 1)
+  stopifnot(is.numeric(gamma), length(gamma) == 1L, is.finite(gamma), gamma > 0)
+  stopifnot(is.numeric(eps), length(eps) == 1L, is.finite(eps), eps > 0, eps < 1)
+  stopifnot(is.function(base_rnd))
+  
+  # ---- precompute tail integral T(x) on a grid ----
+  # Use a grid dense near 0 because of the w^{-1-sigma} singularity.
+  # log-spaced in [grid_min, 1), then clamp to grid_max.
+  grid <- exp(seq(log(grid_min), log(grid_max), length.out = n_grid))
+  grid[grid >= grid_max] <- grid_max
+  
+  # log Lévy density (up to constant):
+  # f(w) = w^{-1-sigma} (1-w)^{c+sigma-1}
+  logf <- (-(1 + sigma)) * log(grid) + (c + sigma - 1) * log1p(-grid)
+  f <- exp(logf)
+  
+  # Tail integral via trapezoid rule from w to 1:
+  # tail_raw[i] ~ ???_{grid[i]}^1 f(w) dw
+  # compute cumulative integral from the right
+  dx <- diff(grid)
+  trap <- 0.5 * (f[-length(f)] + f[-1L]) * dx
+  
+  tail_raw <- numeric(length(grid))
+  tail_raw[length(grid)] <- 0
+  # tail at grid[i] includes trap[i] + ... + trap[end]
+  tail_raw[-length(grid)] <- rev(cumsum(rev(trap)))
+  
+  # Multiply by constant gamma  
+  const <- gamma #* c / gamma(1 - sigma)
+  tail <- const * tail_raw
+  
+  # We need inverse of tail: given t in (0, tail(grid_min)] find w with T(w)=t.
+  # tail decreases with w; for approxfun x must be increasing.
+  tail_inc <- rev(tail)   # increasing
+  grid_dec <- rev(grid)   # corresponding w values increasing in tail_inc's index
+  
+  inv_tail <- approxfun(x = tail_inc, y = grid_dec, method = "linear",
+                        rule = 2, ties = "ordered")
+  
+  # Stopping threshold in Gamma-space: stop when Gamma_i > T(eps)
+  # If eps is smaller than grid_min, clamp to grid_min.
+  eps_clamped <- max(eps, grid_min)
+  # approximate T(eps) by interpolating tail on grid
+  T_eps <- approx(x = grid, y = tail, xout = eps_clamped, rule = 2)$y
+  
+  if (!is.finite(T_eps) || T_eps <= 0) {
+    return(list(w = numeric(0), theta = base_rnd(0)))
+  }
+  
+  # ---- Ferguson-Klass series ----
+  w_list <- numeric(0)
+  G <- 0.0
+  i <- 0L
+  
+  repeat {
+    i <- i + 1L
+    G <- G + rexp(1L, rate = 1)  # Gamma_i
+    if (G > T_eps) break
+    
+    w_i <- inv_tail(G)
+    # numerical safety
+    if (!is.finite(w_i) || w_i <= 0 || w_i >= 1) next
+    if (w_i < eps) break
+    w_list <- c(w_list, w_i)
+  }
+  
+  # Sample locations
+  theta <- base_rnd(length(w_list))
+  
+  list(w = w_list, theta = theta)
+}

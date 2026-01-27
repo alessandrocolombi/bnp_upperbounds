@@ -11,7 +11,10 @@ setwd(wd)
 source("../../R/Rfunctions.R")
 Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
 
-# Colors ------------------------------------------------------------------
+# Plot and colors ------------------------------------------------------------------
+
+save_img = FALSE
+width = 12; height = 6
 
 
 # Load --------------------------------------------------------------------
@@ -56,6 +59,9 @@ ymax = max(max(Nj_locale)/n , max(pyp_qnt) )
 ypos = seq(0, ymax, length.out = 5)
 ylabs = round(ypos, 2)
 
+
+if(save_img)
+  pdf("img/Mod1_PD_paramfit.pdf", width = width, height = height)
 par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0), bty = "l")
 plot(0,0,main = " ", ylab = "#obs.", yaxt = "n", 
      xlim = c(0,xmax), ylim = c(0,ymax), type = "n")
@@ -72,7 +78,8 @@ points(x = (1:xmax)+0.25, y = pyp_qnt[2,1:xmax],
 segments(x0 = (1:xmax)+0.25, x1 = (1:xmax)+0.25,
          y0 = rep(0,xmax), y1 = pyp_qnt[2,1:xmax], 
          col = "black", lwd = 1, lty = 2)
-
+if(save_img)
+  dev.off()
 
 # Upper bound (PYP)
 ubpyp = exp(compute_log_UBMarkov( Rmax, alpha_mle, theta_mle, Kn, n, alfa ))
@@ -108,6 +115,8 @@ ymax = max(max(Nj_locale)/n , max(FD_qnt) )
 ypos = seq(0, ymax, length.out = 5)
 ylabs = round(ypos, 2)
 
+if(save_img)
+  pdf("img/Mod1_FDP_paramfit.pdf", width = width, height = height)
 par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0), bty = "l")
 plot(0,0,main = " ", ylab = "#obs.", yaxt = "n", 
      xlim = c(0,xmax), ylim = c(0,ymax), type = "n")
@@ -124,7 +133,8 @@ points(x = (1:xmax)+0.25, y = FD_qnt[2,1:xmax],
 segments(x0 = (1:xmax)+0.25, x1 = (1:xmax)+0.25,
          y0 = rep(0,xmax), y1 = FD_qnt[2,1:xmax], 
          col = "black", lwd = 1, lty = 2)
-
+if(save_img)
+  dev.off()
 
 # Upper bound (FD)
 RmaxFD = 100
@@ -161,6 +171,10 @@ plot(0,0,main = " ", ylab = "Missing mass (density)",
      xlim = c(0,xmax), ylim = c(0,ymax), type = "n")
 points(x = xgrid, y = dMissMass_PYP,type = "l",lwd = 3, col = "black")
 abline(v = ExpMissMass_PYP, col = "red", lty = 2, lwd = 2)
+abline(v = qbeta(p = c(0.025,0.975), shape1 = theta_mle + alpha_mle*Kn, shape2 = n - alpha_mle*Kn ),
+       col = "grey70", lty = 4, lwd = 2)
+
+
 
 ## FD ------------------------------------------------------------
 Mstar_ub = 51
@@ -177,6 +191,7 @@ Mstar_MC = sample(0:(Mstar_ub-1), size = 10000, prob = exp(log_PMstar), replace 
 summary(Mstar_MC)
 Mstar_tab = table(Mstar_MC)
 bp1 = barplot(Mstar_tab)
+
 
 par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0))
 barplot( height = Mstar_tab/length(Mstar_MC), 
@@ -201,6 +216,7 @@ MissMass_FD = rbeta(n = length(Mstar_MC),
 
 dMissMass_FD = density(MissMass_FD)
 
+
 ymax = max(dMissMass_FD$y) * 1.05
 xmax = max(dMissMass_FD$x) * 1.05
 par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0), bty = "l")
@@ -209,4 +225,6 @@ plot(0,0,main = " ", ylab = "Missing mass (density)",
 points(x = dMissMass_FD$x, y = dMissMass_FD$y,
        type = "l",lwd = 3, col = "black")
 abline(v = ExpMissMass_FD, col = "red", lty = 2, lwd = 2)
+abline(v = quantile(MissMass_FD, probs = c(0.025,0.975)), 
+       col = "grey70", lty = 4, lwd = 2)
 

@@ -1440,7 +1440,7 @@ double log_efpfBeBeMixNBin( const int& n, const int& Kn, const std::vector<int>&
 	}
 	// Negative binomial reparametrization
 	double p_nb{mu_nb/var_nb};               // prob hyperparameter
-	double r_nb{mu_nb*mu_nb/(var_nb-mu_nb)}; // size hyperparameter
+	double r_nb{mu_nb*p_nb/(1.0 - p_nb)};    // size hyperparameter r_nb{mu_nb*mu_nb/(var_nb-mu_nb)}
 
 	double res{ gsl_sf_lngamma((double)Kn + r_nb) - gsl_sf_lngamma((double)Kn - 1.0) - gsl_sf_lngamma(r_nb) };
 	double temp{ std::exp( log_raising_factorial(n,b) - log_raising_factorial(n,a+b) ) };

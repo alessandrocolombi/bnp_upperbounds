@@ -3,7 +3,7 @@ wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[1] # <--- modify here
+choose_wd = wd_vec[3] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData/")
 setwd(wd)
 
@@ -18,23 +18,27 @@ source("../../../BinomialCIs/R/Rfunctions.R")
 Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 # Colors ------------------------------------------------------------------
-
+save_img = FALSE
+width = 12; height = 6
+cex.labels = 2
+xmax = 140
 
 # Load --------------------------------------------------------------------
 
 load("RawDataInc.Rdat")
-data = A
-n = nrow(A)
-Kn = ncol(A)
-N_j = colSums(A)
+data = t(A)
+n = ncol(A)
+Kn = nrow(A)
+N_j = rowSums(A)
 names(N_j) = as.character(1:Kn)
+Nj_ordered = sort(N_j, decreasing = TRUE)
 
 seed = 34231
 set.seed(seed)
 
 
 # Options  --------------------------------------------------------
-eps_grid = c(0.001, seq(0.04,0.2,length.out =  (34*5-1)) )
+eps_grid = c(0.001, seq(0.1,0.3,length.out =  (34*5-1)) )
 cov_grid = 1 - eps_grid
 alpha = 0.05
 M_max = 200
@@ -45,8 +49,8 @@ num_cores = 34
 Nrep = 50
 
 # Run) Mmax-based  --------------------------------------------------------
-# res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
-# save(res, file = "save/Mod2_Inc4Meetings_SRMmax.Rdat")
+res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
+save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
@@ -59,7 +63,7 @@ mycol = c("red","darkblue","darkorange","chocolate")
 ygrids = vector("list",4)
 ygrids[[1]]<-ygrids[[2]]<-ygrids[[3]]<-ygrids[[4]]<-eps_grid
 if(!stop_here){
-  load("save/Mod2_Inc4Meetings_SRMmax.Rdat")
+  load("save/Mod3_Inc4People_SRMmax.Rdat")
   # load("save/Mod2_Inc4Meetings_SRMcov.Rdat")
   
   res = lapply(res, function(x) {x[which(is.na(x))] = n; x} )
@@ -77,12 +81,12 @@ if(!stop_here){
   res_all = res_all[,-2,]
   
   if(save_img)
-    pdf("img/Mod2_Inc4meetings_StopR_grid.pdf", width = width, height = height)
+    pdf("img/Mod3_Inc4People_StopR_grid.pdf", width = width, height = height)
   par(mfrow = c(1,1),bty = "l",  mgp=c(1.5,0.5,0), mar = c(2.5,2.5,1,0), las = 1, cex = 2)
   plot(0,0,type = "n", main = "", ylab = "Nstop",
        xlim = range(eps_grid), ylim = c(0,n), 
        xlab = expression(epsilon) )
-       # xlab = paste0(expression(epsilon)," / 1 - coverage") )
+  # xlab = paste0(expression(epsilon)," / 1 - coverage") )
   for(i in 1:4){
     points(y = res_all[2,i,], x = ygrids[[i]], 
            type = "l", lty = ltype[i], 
