@@ -215,8 +215,8 @@ double log_raising_factorial(const unsigned int& n, const double& a)
 
 // [[Rcpp::export]]
 NumericMatrix r_SB( const int& Nrep, const int& Natoms, 
-					const double& alpha, const double& theta, 
-					const int& seed)
+					          const double& alpha, const double& theta, 
+					          const int& seed)
 {
 	sample::rbeta beta; 
 	sample::GSL_RNG engine(seed);
@@ -754,7 +754,7 @@ double compute_logV( const int& Kn, const int& n,
 
 // [[Rcpp::export]]
 double log_eppfFD( const int& n, const int& Kn, const std::vector<int>& n_j, 
-				   const double& gamma, const double& Lambda, unsigned int M_max )
+				           const double& gamma, const double& Lambda, unsigned int M_max )
 {
 	double inf = std::numeric_limits<double>::infinity();
 
@@ -986,8 +986,8 @@ double log_ExpMr_FD(const int& r, const double& gamma, const double& Lambda, con
 
 // [[Rcpp::export]]
 double compute_log_UBMarkov_FD( const int& Rmax, const double& gamma, const double& Lambda, 
-								const int& Kn, const int& n,
-						        const double& alpha_lev, unsigned int M_max)
+								                const int& Kn, const int& n,
+						                    const double& alpha_lev, unsigned int M_max)
 {
 	double inf = std::numeric_limits<double>::infinity();
 
@@ -1009,6 +1009,121 @@ double compute_log_UBMarkov_FD( const int& Rmax, const double& gamma, const doub
 	{
 		// 1/r * ( log(ExpVal) - log(alpha_lev) )
 		double lExp = log_ExpMr_FD(r, gamma, Lambda, Kn, n, M_max);
+		//Rcpp::Rcout<<"lExp:"<<std::endl<<lExp<<std::endl;
+		double log_res_r{ lExp - std::log(alpha_lev) };
+		//Rcpp::Rcout<<"log_res_r:"<<std::endl<<log_res_r<<std::endl;
+		log_res_r *= 1.0/double(r);
+		//Rcpp::Rcout<<"log_res_r:"<<std::endl<<log_res_r<<std::endl;
+
+		// Find minumum
+		if(log_res_r < log_res){
+			//Rcpp::Rcout<<"Min r: "<<r<<std::endl;
+			log_res = log_res_r;
+		}
+	}
+
+	return log_res;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------
+//	Species - Dirichlet Multinomial (M known)
+//------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// [[Rcpp::export]]
+double log_DirMulti( const int& n, const int& M, const std::vector<int>& n_j, const double& gamma)
+{
+	double inf = std::numeric_limits<double>::infinity();
+
+	// Check n and M
+	if(n < 1)
+		throw std::runtime_error("Error in log_DirMulti: n must be at least one");
+	if(M < 1)
+		throw std::runtime_error("Error in log_DirMulti: M must be at least one");
+
+	// Check n_j
+	if(n_j.size() != M)
+		throw std::runtime_error("Error in log_DirMulti: the length of n_j must match the alphabet size M");
+	std::for_each(n_j.cbegin(), n_j.cend(), [](const int& x){ 
+		if(x<0)
+			throw std::runtime_error("Error in log_DirMulti: invalid nj, cannot be negative");  
+	});
+
+	// Check parameters
+	if(gamma < 1e-16){
+		Rcpp::Rcout<<"Caso proibito"<<std::endl;
+		return -std::exp(20);
+	}
+
+	double res{0.0};
+	res += std::lgamma( n+1.0 ) - std::lgamma( n + M*gamma ) + std::lgamma( M*gamma ) - (double)M*std::lgamma( gamma );
+	for(std::size_t j = 0; j < n_j.size(); j++){
+		res += std::lgamma( n_j[j]+gamma ) - std::lgamma( n_j[j]+1.0 );
+	}
+
+	if( res == inf || std::isnan(res) || res == -inf){
+		Rcpp::Rcout<<"Error in log_DirMulti: NaN, Inf or -Inf returned "<<std::endl;
+		Rcpp::Rcout<<"res = "<<res<<std::endl;
+		Rcpp::Rcout<<"gamma = "<<gamma<<std::endl;
+		Rcpp::Rcout<<"n = "<<n<<std::endl;
+		Rcpp::Rcout<<"M = "<<M<<std::endl;
+		Rcpp::Rcout<<"Stampo n_j: ";		
+		for(auto __v : n_j)
+			Rcpp::Rcout<<__v<<", ";
+		Rcpp::Rcout<<std::endl;
+		throw std::runtime_error("Error ");
+	}
+	return res;
+
+}
+
+// [[Rcpp::export]]
+double log_ExpMr_DirMulti( const int& r, const double& gamma, const int& Kn, const int& M, const int& n )
+{
+	double inf = std::numeric_limits<double>::infinity();
+
+	if(r < 1)
+		throw std::runtime_error("Error in log_ExpMr_DirMulti: r must be at least one");
+	if(n < 1)
+		throw std::runtime_error("Error in log_ExpMr_DirMulti: n must be at least one");
+	if(Kn > n)
+		throw std::runtime_error("Error in log_ExpMr_DirMulti: Kn must be smaller or equal to n");
+	if(Kn > M)
+		throw std::runtime_error("Error in log_ExpMr_DirMulti: Kn must be smaller or equal to M");
+	if(M <= 1)
+		throw std::runtime_error("Error in log_ExpMr_DirMulti: M must be at least equal to 2");
+	if(gamma < 0)
+		throw std::runtime_error("Error in log_ExpMr_DirMulti: gamma must be positive");
+
+	double res{0.0};
+	res += std::log( (double)(M-Kn) ) + 
+	       std::lgamma( gamma + r ) - std::lgamma( gamma ) + 
+	       std::lgamma( n + gamma*M ) - std::lgamma( n + gamma*M + r );
+
+	return(res);
+}
+
+// [[Rcpp::export]]
+double compute_log_UB_DirMulti( const int& Rmax, const double& gamma, const int& M,
+								                const int& Kn, const int& n, const double& alpha_lev)
+{
+	double inf = std::numeric_limits<double>::infinity();
+
+	if(Rmax < 1)
+		throw std::runtime_error("Error in compute_log_UB_DirMulti: Rmax must be at least one");
+	if(n < 1)
+		throw std::runtime_error("Error in compute_log_UB_DirMulti: n must be at least one");
+	if(Kn > n)
+		throw std::runtime_error("Error in compute_log_UB_DirMulti: Kn must be smaller or equal to n");
+	if(gamma < 0)
+		throw std::runtime_error("Error in compute_log_UB_DirMulti: alpha must be positive");
+	if(alpha_lev < 1e-16 || alpha_lev > 1 - 1e-16)
+		throw std::runtime_error("Error in compute_log_UB_DirMulti: alpha_lev must be at scalar in the range (1e-16,1-1e-16)");
+
+	double log_res{inf};
+	for (int r = 1; r <= Rmax; r++)
+	{
+		// 1/r * ( log(ExpVal) - log(alpha_lev) )
+		double lExp = log_ExpMr_DirMulti(r, gamma, Kn, M, n);
 		//Rcpp::Rcout<<"lExp:"<<std::endl<<lExp<<std::endl;
 		double log_res_r{ lExp - std::log(alpha_lev) };
 		//Rcpp::Rcout<<"log_res_r:"<<std::endl<<log_res_r<<std::endl;

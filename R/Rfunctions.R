@@ -126,6 +126,11 @@ llik_FD <- function(x, n, Kn, data_obs, M_max) {
   Lambda <- x[2]
   -log_eppfFD(n,Kn,data_obs,gamma,Lambda,M_max)
 }
+llik_DirMult = function(x, n, M, data){
+  gamma = x[1]
+  -log_DirMulti(n,M,data,gamma)
+} 
+
 
 # Objective functions (features) -----------------------------------------------------
 llik_PP <- function(x,n, Kn, data_obs, gamma) {
