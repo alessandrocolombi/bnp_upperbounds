@@ -33,7 +33,7 @@ find_ma_worstunif <- function(n,alpha){
       break
     }
   }
-  m
+  m 
 }
 worst_uniform <- function(M,n,alpha){
   ma = find_ma_worstunif(n,alpha)
@@ -54,8 +54,9 @@ p_all_seen_uniform <- function(n, ma) {
   exp(lres) 
 } 
 oracle_worst_uniform <- function(n, ma, alpha) {
-  q <- 1 - p_all_seen_uniform(n, ma) # P(missing at least one) 
-  if (q > alpha) 1/ma else 0 
+  1/ma
+  # q <- 1 - p_all_seen_uniform(n, ma) # P(missing at least one) 
+  # if(q > alpha) 1/ma else 0 
 }
 
 

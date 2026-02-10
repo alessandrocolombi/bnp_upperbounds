@@ -3,7 +3,7 @@ wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[3] # <--- modify here
+choose_wd = wd_vec[1] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/species")
 setwd(wd)
 
@@ -21,7 +21,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 # Custom functions --------------------------------------------------------
 seed = 121321
-M = 100
+M = 50
 Exp_species_nfix_run = function(M,n,name,alpha = 0.05,Rmax = 100, M_max = 200, M_DM = NULL, seed = 121321)
 {
   source("../../R/Rfunctions.R")
@@ -33,7 +33,7 @@ Exp_species_nfix_run = function(M,n,name,alpha = 0.05,Rmax = 100, M_max = 200, M
   set.seed(seed)
   ptrue = sim_generic_species(name,M,n,alpha)
   # Define return object
-  res_names = c("Mmax","Freq","PD","FDP","DirMulti")
+  res_names = c("Mmax","Freq","PD","FDP","DirMulti","DirMulti_M")
   res = matrix(NA,nrow = 1, ncol = length(res_names))
   colnames(res) = res_names
   #a) Generate data
@@ -80,6 +80,7 @@ Exp_species_nfix_run = function(M,n,name,alpha = 0.05,Rmax = 100, M_max = 200, M
   # Param. estimation (DirMulti)
   if(is.null(M_DM))
     M_DM = 10 * Kn
+  M_DM = min(M,M_DM)
   start_params <- c(gamma = 0.5)
   fit <- optim(par = start_params, fn = llik_DirMult, 
                n = n, M = M_DM, data = n_i[1:M_DM], # extra parameters
@@ -91,13 +92,11 @@ Exp_species_nfix_run = function(M,n,name,alpha = 0.05,Rmax = 100, M_max = 200, M
   ubDM = min(ubDM,1)
   #f) Dirichlet-Multinomial --> M = M
   # Param. estimation (DirMulti)
-  if(is.null(M_DM))
-    M_DM = 10 * Kn
   start_params <- c(gamma = 0.5)
-  fit <- optim(par = start_params, fn = llik_DirMult, 
-               n = n, M = M, data = n_i[1:M], # extra parameters
+  fit <- optim(par = start_params, fn = llik_DirMult,
+               n = n, M = M, data = n_i, # extra parameters
                method = "L-BFGS-B",
-               lower = c(1e-10), upper = c(Inf)) 
+               lower = c(1e-10), upper = c(Inf))
   gamma_mle = fit$par[1]
   # Upper bound (DirMulti)
   ubDM2 = exp(compute_log_UB_DirMulti( Rmax, gamma_mle, M, Kn, n, alpha ))
@@ -152,10 +151,9 @@ width = 12; height = 6
 cex.labels <- cex.lab <- 2
 cex.axis <- 2
 cex.legend <- 1.5
-mycol = c("darkorange","darkred","darkblue","lightblue","black")
+mycol = c("darkorange","darkred","darkblue","lightblue","aquamarine")
 mycol2 = c("black","lightblue")
-mycol_band = c("lightsalmon","tomato","lightblue","grey85")
-lgd_names = c("Freq","PD","FDP","Dir-Multi","Oracle")
+lgd_names = c("Freq","PD","FDP","Dir-Multi")
 
 # Options -----------------------------------------------------------------
 experiments = list("WorstUnif")
@@ -163,7 +161,7 @@ alpha <- alfa <- 0.05
 Nrep = 500 
 n = 500
 Rmax = 100; RmaxFD = 50
-Mmin_grid = 100; Mmax_grid = 200
+Mmin_grid = 50; Mmax_grid = 500
 Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
 Nexp = length(Mgrid)
 M_max = 200
@@ -179,12 +177,10 @@ img_fld = paste0("img/")
 
 ii = 1
 name = experiments[[ii]]
-
-## Oracle 
 ma = find_ma_worstunif(n,alpha)
-oracle = oracle_worst_uniform(n = n, ma = ma, alpha = alpha)
+q = 1-p_all_seen_uniform(n,ma)
 
-num_cores = 34 # <---
+num_cores = 5 # <---
 run_obj <- Map(function(m, s) list(M = m, seed = s),Mgrid, seeds)
 
 ExpRes_list = lapply( run_obj,
@@ -202,8 +198,8 @@ filename = paste0(save_name_base,name,"_nfix",".Rdat")
 if(save_exp)
   save(ExpRes_list, file = filename)
 
-
 # Analysis ----------------------------------------------------------------
+# load(filename)
 
 stop_here = TRUE
 
@@ -230,7 +226,7 @@ if(!stop_here){
   
   ## axis labels
   ymax = (11/10) * max(ExpRes_qnt); ymin = 0
-  ymax = 15*1e-3; ymin = 11.5*1e-3
+  ymax = 15*1e-3; ymin = 8.5*1e-3
   ylim_plot = c(ymin,ymax)
   ypos = seq(ymin,ymax,length.out = 5)
   ylabs = as.character(round(ypos*1e3,0))
@@ -243,7 +239,7 @@ if(!stop_here){
   img_name = paste0(img_fld,name,"_nfix",".pdf")
   if(save_img)
     pdf(img_name, width = width, height = height)
-  par( mfrow = c(1,1), mar = c(3.5,4,1,1), mgp=c(2.5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+  par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )
   plot(0,0,  yaxt = "n", xaxt = "n",
        xlab = "", ylab = "1000 * bound",
        xlim = xlim_plot , ylim = ylim_plot, 
@@ -253,25 +249,56 @@ if(!stop_here){
   axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
   axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
   mtext("M", side = 1, line = 2.5, cex = cex.axis)
-  # for(ii in c(2,3)){
-  #   polygon( c(Mgrid, rev(Mgrid)),
-  #            c(ExpRes_qnt[1,ii,], rev(ExpRes_qnt[3,ii,])),
-  #            col = mycol[ii],
-  #            border = NA) # plot in-sample bands
-  # }
+  abline(v = ma, lty = 2, lwd = 2, col = "red")
   for(ii in 1:dim(ExpRes_qnt)[2]){
     points( x = Mgrid, y = ExpRes_qnt[2,ii,], 
             type = "l", lwd = 5, col = mycol[ii] ) 
   }
   
-  legend("right",lgd_names,
-         fill = mycol, cex = cex.legend, bty = "n", border = NA)
+  legend("bottomright",lgd_names,
+         fill = mycol[1:4], cex = cex.legend, bty = "n", border = NA)
   if(save_img)
     dev.off()
   
+  DirMulti_Ma_list = lapply(ExpRes_list, function(x) {
+    not_all_seen = which(x[,1] > 0)
+    y = x[not_all_seen,5]
+    y
+    # quantile(y, probs = c(0.025,0.5,0.975))
+    # quantile(y, probs = c(0.025,0.5,0.975))
+  })
+  # DirMulti_Ma_mat = do.call(cbind,DirMulti_Ma_list)
   
-
-
+  ## axis labels
+  ymax = (11/10) * max(sapply(DirMulti_Ma_list,max)); ymin = 0
+  ylim_plot = c(ymin,ymax)
+  ypos = seq(ymin,ymax,length.out = 5)
+  ylabs = as.character(round(ypos*1e3,0))
+  xmax = max(Mgrid); xmin = min(Mgrid)
+  xlim_plot = c(xmin,xmax)
+  xpos = Mgrid
+  xlabs = as.character(Mgrid)
+  
+  
+  img_name = paste0(img_fld,name,"_nfix_DirMultiMa",".pdf")
+  if(save_img)
+    pdf(img_name, width = width, height = height)
+  par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+  plot(0,0,  yaxt = "n", xaxt = "n",
+       xlab = "", ylab = "1000 * bound",
+       xlim = xlim_plot , ylim = ylim_plot, 
+       main = paste0(" "),
+       type = "n")
+  grid(lty = 1,lwd = 1, col = "gray90" )
+  axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
+  axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
+  mtext("M", side = 1, line = 2.5, cex = cex.axis)
+  abline(v = ma, lty = 2, lwd = 2, col = "red")
+  abline(h = 1/ma, lty = 3, lwd = 2, col = "black")
+  for(ii in 1:length(DirMulti_Ma_list)){
+    boxplot(DirMulti_Ma_list[[ii]], add = TRUE,
+            at = Mgrid[ii], yaxt = "n")
+  }
 }
 
 # Brutta ------------------------------------------------------------------
