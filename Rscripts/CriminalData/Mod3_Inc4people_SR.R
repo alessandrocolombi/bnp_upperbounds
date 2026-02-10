@@ -3,7 +3,7 @@ wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[3] # <--- modify here
+choose_wd = wd_vec[1] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData/")
 setwd(wd)
 
@@ -49,8 +49,8 @@ num_cores = 34
 Nrep = 50
 
 # Run) Mmax-based  --------------------------------------------------------
-res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
-save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
+# res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
+# save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)

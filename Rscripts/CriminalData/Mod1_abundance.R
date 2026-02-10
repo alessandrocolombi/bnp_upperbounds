@@ -193,7 +193,9 @@ Mstar_tab = table(Mstar_MC)
 bp1 = barplot(Mstar_tab)
 
 
-par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0))
+if(save_img)
+  pdf("img/Mod1_Mstar_barplot.pdf", width = width, height = height)
+par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0), cex = 2)
 barplot( height = Mstar_tab/length(Mstar_MC), 
          names.arg = "", las = 2, col = "darkred", border = NA,
          main = " ", ylab = "Mstar", yaxt = "n" )
@@ -201,7 +203,30 @@ axis( side = 2, at = seq(0, max(Mstar_tab/length(Mstar_MC)), by=0.01), las = 1)
 text( x = bp1, y = -0.01, 
       labels = names(Mstar_tab), cex = 1,
       srt = 0, adj = 0.5, xpd = TRUE)
+if(save_img)
+  dev.off()
 
+## Highest posterior density region
+pMstar = Mstar_tab/length(Mstar_MC)
+pMstar_ordered = sort(pMstar, decreasing = TRUE)
+pMstar_ordered_csum = cumsum(pMstar_ordered)
+if(save_img)
+  pdf("img/Mod1_Mstar_HPD.pdf", width = width, height = height)
+par(mfrow = c(1,1), mgp=c(2,0.5,0), mar = c(1.5,3,1,0), cex = 2)
+barplot( height = pMstar_ordered_csum, 
+         names.arg = "", las = 2, 
+         col = c(rep("grey15",5),"grey40", c("grey70","grey70"), rep("grey90",4)),
+         border = NA,
+         main = " ", ylab = "HPD - Mstar", yaxt = "n" )
+axis( side = 2, at = seq(0, 1, by=0.25), las = 1)
+text( x = bp1, y = -0.05, 
+      labels = names(pMstar_ordered_csum),
+      srt = 0, adj = 0.5, xpd = TRUE)
+abline( h = c(0.9,0.95,0.99), 
+        col = c("grey15","grey40","grey70"), 
+        lty = 2, lwd = 3 )
+if(save_img)
+  dev.off()
 ## Missing mass
 log_ExpMissMass_vec = sapply(1:(Mstar_ub-1), function(m) {
   log(gamma_mle) + log(m) - log(n + gamma_mle*(Kn+m)) + log_PMstar[m+1]

@@ -14,16 +14,75 @@ sim_negbin = function(M,l,r){
 }
 sim_betabin = function(M,a,b){
   w = dbetabinom.ab(x = 0:(M-1), size = M-1, shape1 = a, shape2 = b)
-  # lw = sapply(1:M,function(j) lchoose(M,j) + lbeta(j+a,M-j+b) - lbeta(a,b) )
-  # lw = lchoose(M,1:M) + lbeta(1:M + a, M - 1:M + b )  
-  # max_lw = max(lw)
-  # w = exp(lw - max_lw)*exp(max_lw)
   w / sum(w)
 }
 sim_unif = function(M){
   w = 1:M
   w / sum(w)
 }
+
+
+# Worst case distribution -------------------------------------------------
+
+find_ma_worstunif <- function(n,alpha){
+  lStir = lastirlings2(n)
+  for(m in 1:n){
+    lres = lfactorial(m) - n*log(m) + lStir[(n+1),(m+1)]
+    prob = 1 - exp(lres)
+    if(prob > alpha){
+      break
+    }
+  }
+  m
+}
+worst_uniform <- function(M,n,alpha){
+  ma = find_ma_worstunif(n,alpha)
+  if(M <= ma)
+    p = rep(1/M,M)
+  if(M > ma){
+    p = rep(0,M)
+    p[1:ma] = rep(1/ma, ma)
+  }
+  p
+}
+
+p_all_seen_uniform <- function(n, ma) { 
+  if (ma < 0) return(0) 
+  if (n < ma) return(0) # impossible to see all symbols 
+  lStir = lastirlings2(n) 
+  lres = lfactorial(ma) - n*log(ma) + lStir[(n+1),(ma+1)] 
+  exp(lres) 
+} 
+oracle_worst_uniform <- function(n, ma, alpha) {
+  q <- 1 - p_all_seen_uniform(n, ma) # P(missing at least one) 
+  if (q > alpha) 1/ma else 0 
+}
+
+
+# General sim from species  -----------------------------------------------
+
+sim_generic_species = function(name,M,param1,param2 = NULL){
+  if(name == "Zipfs"){
+    sim_zipfs(M,param1)
+  }else if( name == "Geom" ){
+    sim_geom(M,param1)
+  }else if( name == "Uniform"){
+    sim_unif(M)
+  }
+  else if( name == "NegBin"){
+    sim_negbin(M, param1, param2)
+  }
+  else if( name == "BetaBin"){
+    sim_betabin(M,param1, param2)
+  }
+  else if( name == "WorstUnif"){
+    worst_uniform(M,param1,param2)
+  }
+  else
+    stop("Invalid name")
+  
+}
+
 
 # Upper bound Painsky -----------------------------------------------------
 ub_pain = function(n,Rmax,alfa){
@@ -724,8 +783,7 @@ base_rnd <- function(n) runif(n)
 #'
 #' Returns:
 #'   list(w = weights in decreasing order, theta = sampled locations)
-fk_stable_beta_process <- function(c, sigma, gamma,
-                                   base_rnd,
+fk_stable_beta_process <- function(c, sigma, gamma, base_rnd = base_rnd,
                                    eps = 1e-8,
                                    n_grid = 20000L,
                                    grid_min = 1e-12,

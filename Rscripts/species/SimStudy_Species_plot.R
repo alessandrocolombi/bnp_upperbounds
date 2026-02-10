@@ -1,5 +1,5 @@
-# setwd("C:/Users/colom/bnp_upperbounds/Rscripts/species")
-setwd("/home/lucia.paci/Lucia/Ale/bnp_upperbounds/Rscripts/species")
+setwd("C:/Users/colom/bnp_upperbounds/Rscripts/species")
+# setwd("/home/lucia.paci/Lucia/Ale/bnp_upperbounds/Rscripts/species")
 
 # Librerie ----------------------------------------------------------------
 
@@ -75,7 +75,7 @@ ymin = 0
 ylabs = round(seq(0,ymax,length.out = 5),3)
 
 
-save_img = TRUE
+save_img = FALSE
 img_name = paste0("../img/SSSpecies_zipfs.pdf")
 
 if(save_img)

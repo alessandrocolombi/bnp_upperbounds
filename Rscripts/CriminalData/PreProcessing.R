@@ -13,7 +13,8 @@ n_people = nrow(A) # 156
 n_meetings = ncol(A)-1 # 47, first column reports the names
 
 # Colors ------------------------------------------------------------------
-
+save_img = FALSE
+width = 8; height = 6
 bw_col = c("grey90","black")
 
 
@@ -209,6 +210,25 @@ text( x = bp1, y = -1,
       labels = names(N_j), cex = 0.2,
       srt = 0, adj = 0.5, xpd = TRUE)
 
+
+ord <- order(N_j, decreasing = TRUE)
+N_j_sorted <- N_j[ord]
+Role_sorted <- Role_temp[ord]
+
+cols <- ifelse(Role_sorted == "boss", "darkred", "steelblue") # colors by role
+
+if(save_img)
+  pdf("img/Mod3_Inc4people_barplot.pdf", width = width, height = height)
+par(mfrow = c(1,1), mgp=c(1,0.5,0), mar = c(1,2,1,0), cex = 2)
+bp1 <- barplot(height = N_j_sorted,
+               names.arg = "",
+               col = cols, border = NA,
+               main = " ", ylab = "", yaxt = "n")
+axis(2, at = seq(0, max(N_j_sorted), by = 2), las = 1)
+legend("topright", legend = c("boss", "affil"),
+       fill = c("darkred", "steelblue"), border = NA, bty = "n")
+if(save_img)
+  dev.off()
 # Accumulation curves -----------------------------------------------------
 seed = 42
 set.seed(seed)

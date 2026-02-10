@@ -15,6 +15,64 @@
 using namespace Rcpp;
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
+//	Stirling numbers
+//------------------------------------------------------------------------------------------------------------------------------------------------------
+// Matrix of size (n+1)x(n+1) such that log|s(n,k)| is in position (n+1,k+1) (counting from 1)
+// e.g., n = 4; Mat = lastirlings1(n); exp(Mat)[n,] = log(6,11,6,1) = (1.791,2.397,1.791,0) (counting from 0) 
+// [[Rcpp::export]]
+Eigen::MatrixXd lastirlings1(int n){
+  double inf = std::numeric_limits<double>::infinity();
+
+  Eigen::MatrixXd LogS = Eigen::MatrixXd::Constant(n+1,n+1,-inf);
+  
+  // Fill the starting values
+  LogS(0,0) = 0;
+  LogS(1,1) = 0;
+  
+  for(int i = 2; i <= n; i++){
+    for(int j = 1; j < i; j++){
+      LogS(i,j) = LogS(i-1,j) + std::log(i-1 + std::exp(LogS(i-1,j-1) - LogS(i-1,j))); 
+    }
+    LogS(i,i)  = 0;
+  }
+
+  
+  return(LogS);
+}
+
+double log_add_exp(double a, double b) {
+  // returns log(exp(a) + exp(b)) stably
+  if (a == -std::numeric_limits<double>::infinity()) return b;
+  if (b == -std::numeric_limits<double>::infinity()) return a;
+  double m = (a > b) ? a : b;
+  return m + std::log1p(std::exp((a > b) ? (b - a) : (a - b)));
+}
+
+// [[Rcpp::export]]
+Eigen::MatrixXd lastirlings2(int n){
+  const double neginf = -std::numeric_limits<double>::infinity();
+
+  Eigen::MatrixXd LogS = Eigen::MatrixXd::Constant(n+1, n+1, neginf);
+
+  // Base case: S(0,0)=1
+  LogS(0,0) = 0.0;
+
+  // Fill using recurrence: S(i,j) = j*S(i-1,j) + S(i-1,j-1)
+  for(int i = 1; i <= n; ++i){
+    LogS(i, i) = 0.0;      // S(i,i)=1
+    LogS(i, 1) = 0.0;      // S(i,1)=1 for i>=1
+
+    for(int j = 2; j <= i-1; ++j){
+      double term1 = LogS(i-1, j) + std::log((double)j); // log(j*S(i-1,j))
+      double term2 = LogS(i-1, j-1);                     // log(S(i-1,j-1))
+      LogS(i, j) = log_add_exp(term1, term2);
+    }
+  }
+
+  return LogS;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------
 //	log_stable_sum
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 double log_stable_sum(const std::vector<double>& a, const bool is_log, const double& val_max, const unsigned int& idx_max)
@@ -1409,7 +1467,7 @@ double compute_log_UBMarkov_BeBeMixNBin( const int& Rmax, const double& a, const
 // [[Rcpp::export]]
 double log_efpfBeBeMixNBin( const int& n, const int& Kn, const std::vector<int>& n_j, 
 					        const double& a, const double& b,
-					        const double& mu_nb, const double& var_nb )
+					        const double& r_nb, const double& p_nb )
 {
 	double inf = std::numeric_limits<double>::infinity();
 
@@ -1430,32 +1488,28 @@ double log_efpfBeBeMixNBin( const int& n, const int& Kn, const std::vector<int>&
 	if(a <= 0 || b <= 0){
 		return -std::exp(20);
 	}
-	if(mu_nb <= 0 || var_nb <= 0){
-		//Rcpp::Rcout<<"Caso proibito (mu_nb or var_nb < 1e-16)"<<std::endl;
+	if(r_nb <= 0 || p_nb <= 1e-16 || p_nb>= (1.0-1e-16)){
 		return -std::exp(20);
 	}
-	if(mu_nb >= var_nb){
-		Rcpp::Rcout<<"Caso proibito (mu_nb >= var_nb)"<<std::endl;
-		return -std::exp(20);
-	}
-	// Negative binomial reparametrization
-	double p_nb{mu_nb/var_nb};               // prob hyperparameter
-	double r_nb{mu_nb*p_nb/(1.0 - p_nb)};    // size hyperparameter r_nb{mu_nb*mu_nb/(var_nb-mu_nb)}
 
-	double res{ gsl_sf_lngamma((double)Kn + r_nb) - gsl_sf_lngamma((double)Kn - 1.0) - gsl_sf_lngamma(r_nb) };
-	double temp{ std::exp( log_raising_factorial(n,b) - log_raising_factorial(n,a+b) ) };
-	res += r_nb*std::log(p_nb) + (double)Kn*std::log(1.0 - p_nb) - (r_nb+(double)Kn) * std::log( 1.0 - (1.0-p_nb)*temp );
-	res -= (double)Kn*log_raising_factorial(n,a+b);
+	// Auxiliary quantities
+	double temp{ std::exp( log_raising_factorial(n,b) - log_raising_factorial(n,a+b) ) }; // (b)_n / (a+b)_n
+	double lterm = std::log(1.0 - (1.0-p_nb)*temp) ;
+
+	// Compute EFPF
+	double res{0.0};
+	res += gsl_sf_lngamma((double)Kn + r_nb) - gsl_sf_lngamma((double)Kn + 1.0) - gsl_sf_lngamma(r_nb) ;
+	res += r_nb*std::log(p_nb);
+	res += (double)Kn*( std::log(1.0-p_nb) - gsl_sf_lngamma(a) - gsl_sf_lngamma(b) - log_raising_factorial(n,a+b) );
+	res -= (r_nb+(double)Kn) * lterm;
 	for(std::size_t j = 0; j < n_j.size(); j++){
-		res += log_raising_factorial(n_j[j], a) + log_raising_factorial((double)n - n_j[j], b);
+		res += gsl_sf_lngamma( (double)n_j[j] + a) + gsl_sf_lngamma( (double)(n - n_j[j]) + b);
 	}
 	if( res == inf || std::isnan(res) || res == -inf){
 		Rcpp::Rcout<<"Error in log_efpfBeBeMixPois: NaN, Inf or -Inf returned "<<std::endl;
 		Rcpp::Rcout<<"res = "<<res<<std::endl;
 		Rcpp::Rcout<<"a = "<<a<<std::endl;
 		Rcpp::Rcout<<"b = "<<b<<std::endl;
-		Rcpp::Rcout<<"mu_nb = "<<mu_nb<<std::endl;
-		Rcpp::Rcout<<"var_nb = "<<var_nb<<std::endl;
 		Rcpp::Rcout<<"r_nb = "<<r_nb<<std::endl;
 		Rcpp::Rcout<<"p_nb = "<<p_nb<<std::endl;
 		Rcpp::Rcout<<"n = "<<n<<std::endl;
