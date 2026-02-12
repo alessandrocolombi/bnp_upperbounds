@@ -3,7 +3,7 @@ wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[1] # <--- modify here
+choose_wd = wd_vec[3] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/species")
 setwd(wd)
 
@@ -21,7 +21,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 # Custom functions --------------------------------------------------------
 seed = 121321
-M = 50
+M = 100
 Exp_species_nfix_run = function(M,n,name,alpha = 0.05,Rmax = 100, M_max = 200, M_DM = NULL, seed = 121321)
 {
   source("../../R/Rfunctions.R")
@@ -158,10 +158,10 @@ lgd_names = c("Freq","PD","FDP","Dir-Multi")
 # Options -----------------------------------------------------------------
 experiments = list("WorstUnif")
 alpha <- alfa <- 0.05
-Nrep = 500 
+Nrep = 5000 # <---
 n = 500
 Rmax = 100; RmaxFD = 50
-Mmin_grid = 50; Mmax_grid = 500
+Mmin_grid = 100; Mmax_grid = 1000
 Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
 Nexp = length(Mgrid)
 M_max = 200
@@ -177,10 +177,11 @@ img_fld = paste0("img/")
 
 ii = 1
 name = experiments[[ii]]
-ma = find_ma_worstunif(n,alpha)
+ma = find_ma_worstunif(n,alpha); 
 q = 1-p_all_seen_uniform(n,ma)
+trim_q = get_first3digits(q,4)
 
-num_cores = 5 # <---
+num_cores = 34 # <---
 run_obj <- Map(function(m, s) list(M = m, seed = s),Mgrid, seeds)
 
 ExpRes_list = lapply( run_obj,
@@ -192,113 +193,9 @@ ExpRes_list = lapply( run_obj,
 
 
 
-ExpRes_list = lapply(ExpRes_list, function(x){ y = matrix(oracle, nrow = Nrep, ncol = 1); colnames(y) = "oracle"; cbind(x,y) } )
+# ExpRes_list = lapply(ExpRes_list, function(x){ y = matrix(oracle, nrow = Nrep, ncol = 1); colnames(y) = "oracle"; cbind(x,y) } )
 
-filename = paste0(save_name_base,name,"_nfix",".Rdat")
+filename = paste0(save_name_base,name,"_n",n,"_q",trim_q,".Rdat")
 if(save_exp)
   save(ExpRes_list, file = filename)
 
-# Analysis ----------------------------------------------------------------
-# load(filename)
-
-stop_here = TRUE
-
-if(!stop_here){
-  
-  # Coverage ----------------------------------------------------------------
-  cov_list = lapply(ExpRes_list, function(x){
-    cov_mat = matrix(NA,nrow = 1, ncol = 5)
-    cov_mat[1,1] = length(which(x[,1] <= x[,2]))
-    cov_mat[1,2] = length(which(x[,1] <= x[,3]))
-    cov_mat[1,3] = length(which(x[,1] <= x[,4]))
-    cov_mat[1,4] = length(which(x[,1] <= x[,5]))
-    cov_mat[1,5] = length(which(x[,1] <= x[,6]))
-    cov_mat/nrow(x)
-  })
-  cov_mat = do.call(rbind,cov_list)
-  colnames(cov_mat) = colnames(ExpRes_list[[1]])[2:ncol(ExpRes_list[[1]])]
-  cov_mat
-  
-  
-  # Plot --------------------------------------------------------------------
-  ExpRes_qnt = lapply(ExpRes_list, function(x) apply(x[,c(2:6)],2,quantile,probs = c(0.025,0.5,0.975)) )
-  ExpRes_qnt <- simplify2array(ExpRes_qnt) # 3 x 5 x LMgrid
-  
-  ## axis labels
-  ymax = (11/10) * max(ExpRes_qnt); ymin = 0
-  ymax = 15*1e-3; ymin = 8.5*1e-3
-  ylim_plot = c(ymin,ymax)
-  ypos = seq(ymin,ymax,length.out = 5)
-  ylabs = as.character(round(ypos*1e3,0))
-  xmax = max(Mgrid); xmin = min(Mgrid)
-  xlim_plot = c(xmin,xmax)
-  xpos = Mgrid
-  xlabs = as.character(Mgrid)
-  
-  
-  img_name = paste0(img_fld,name,"_nfix",".pdf")
-  if(save_img)
-    pdf(img_name, width = width, height = height)
-  par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-  plot(0,0,  yaxt = "n", xaxt = "n",
-       xlab = "", ylab = "1000 * bound",
-       xlim = xlim_plot , ylim = ylim_plot, 
-       main = paste0(" "),
-       type = "n")
-  grid(lty = 1,lwd = 1, col = "gray90" )
-  axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
-  axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
-  mtext("M", side = 1, line = 2.5, cex = cex.axis)
-  abline(v = ma, lty = 2, lwd = 2, col = "red")
-  for(ii in 1:dim(ExpRes_qnt)[2]){
-    points( x = Mgrid, y = ExpRes_qnt[2,ii,], 
-            type = "l", lwd = 5, col = mycol[ii] ) 
-  }
-  
-  legend("bottomright",lgd_names,
-         fill = mycol[1:4], cex = cex.legend, bty = "n", border = NA)
-  if(save_img)
-    dev.off()
-  
-  DirMulti_Ma_list = lapply(ExpRes_list, function(x) {
-    not_all_seen = which(x[,1] > 0)
-    y = x[not_all_seen,5]
-    y
-    # quantile(y, probs = c(0.025,0.5,0.975))
-    # quantile(y, probs = c(0.025,0.5,0.975))
-  })
-  # DirMulti_Ma_mat = do.call(cbind,DirMulti_Ma_list)
-  
-  ## axis labels
-  ymax = (11/10) * max(sapply(DirMulti_Ma_list,max)); ymin = 0
-  ylim_plot = c(ymin,ymax)
-  ypos = seq(ymin,ymax,length.out = 5)
-  ylabs = as.character(round(ypos*1e3,0))
-  xmax = max(Mgrid); xmin = min(Mgrid)
-  xlim_plot = c(xmin,xmax)
-  xpos = Mgrid
-  xlabs = as.character(Mgrid)
-  
-  
-  img_name = paste0(img_fld,name,"_nfix_DirMultiMa",".pdf")
-  if(save_img)
-    pdf(img_name, width = width, height = height)
-  par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-  plot(0,0,  yaxt = "n", xaxt = "n",
-       xlab = "", ylab = "1000 * bound",
-       xlim = xlim_plot , ylim = ylim_plot, 
-       main = paste0(" "),
-       type = "n")
-  grid(lty = 1,lwd = 1, col = "gray90" )
-  axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
-  axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
-  mtext("M", side = 1, line = 2.5, cex = cex.axis)
-  abline(v = ma, lty = 2, lwd = 2, col = "red")
-  abline(h = 1/ma, lty = 3, lwd = 2, col = "black")
-  for(ii in 1:length(DirMulti_Ma_list)){
-    boxplot(DirMulti_Ma_list[[ii]], add = TRUE,
-            at = Mgrid[ii], yaxt = "n")
-  }
-}
-
-# Brutta ------------------------------------------------------------------

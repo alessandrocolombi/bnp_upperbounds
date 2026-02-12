@@ -33,7 +33,7 @@ find_ma_worstunif <- function(n,alpha){
       break
     }
   }
-  m 
+  m
 }
 worst_uniform <- function(M,n,alpha){
   ma = find_ma_worstunif(n,alpha)
