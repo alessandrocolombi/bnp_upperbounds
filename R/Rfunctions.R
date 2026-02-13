@@ -17,8 +17,7 @@ sim_betabin = function(M,a,b){
   w / sum(w)
 }
 sim_unif = function(M){
-  w = 1:M
-  w / sum(w)
+  rep(1/M,M)
 }
 
 
@@ -62,27 +61,27 @@ oracle_worst_uniform <- function(n, ma, alpha) {
 
 # General sim from species  -----------------------------------------------
 
-sim_generic_species = function(name,M,param1,param2 = NULL){
+sim_generic_species = function(name,M,params){
   if(name == "Zipfs"){
-    sim_zipfs(M,param1)
+    sim_zipfs(M,params[1])
   }else if( name == "Geom" ){
-    sim_geom(M,param1)
+    sim_geom(M,params[1])
   }else if( name == "Uniform"){
     sim_unif(M)
   }
   else if( name == "NegBin"){
-    sim_negbin(M, param1, param2)
+    sim_negbin(M, params[1], params[2])
   }
   else if( name == "BetaBin"){
-    sim_betabin(M,param1, param2)
+    sim_betabin(M,params[1], params[2])
   }
   else if( name == "WorstUnif"){
-    worst_uniform(M,param1,param2)
+    worst_uniform(M,params[1],params[2])
   }
   else
     stop("Invalid name")
-  
 }
+
 
 
 # Upper bound Painsky -----------------------------------------------------
