@@ -3,7 +3,7 @@ wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[3] # <--- modify here
+choose_wd = wd_vec[1] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/species")
 setwd(wd)
 
@@ -170,7 +170,7 @@ seed0 = 42
 set.seed(seed0)
 seeds = sample(1:999999, size = Nexp)
 
-save_exp = TRUE # <---
+save_exp = FALSE # <---
 save_name_base = paste0("save/Species_") 
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------
@@ -181,7 +181,7 @@ ma = find_ma_worstunif(n,alpha);
 q = 1-p_all_seen_uniform(n,ma)
 trim_q = get_first3digits(q,4)
 
-num_cores = 34 # <---
+num_cores = 5 # <---
 run_obj <- Map(function(m, s) list(M = m, seed = s),Mgrid, seeds)
 
 ExpRes_list = lapply( run_obj,

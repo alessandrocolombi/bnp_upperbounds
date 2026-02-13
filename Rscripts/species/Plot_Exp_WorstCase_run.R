@@ -34,10 +34,10 @@ lgd_names = c("Freq","PD","FDP","DirMulti-m","DirMulti")
 # Options -----------------------------------------------------------------
 experiments = list("WorstUnif")
 alpha <- alfa <- 0.05
-Nrep = 500 
+Nrep = 5000 
 n = 500
 Rmax = 100; RmaxFD = 50
-Mmin_grid = 50; Mmax_grid = 500
+Mmin_grid = 100; Mmax_grid = 1000
 Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
 Nexp = length(Mgrid)
 M_max = 200
@@ -77,8 +77,8 @@ ExpRes_qnt = lapply(ExpRes_list, function(x) apply(x[,c(2:6)],2,quantile,probs =
 ExpRes_qnt <- simplify2array(ExpRes_qnt) # 3 x 5 x LMgrid
   
 ## axis labels
-ymax = (11/10) * max(ExpRes_qnt); ymin = 10.5*1e-3
-# ymax = 15*1e-3; ymin = 8.5*1e-3
+ymax = (11/10) * max(ExpRes_qnt); ymin = 0
+ymax = 17.5*1e-3; ymin = 11.5*1e-3
 ylim_plot = c(ymin,ymax)
 ypos = seq(ymin,ymax,length.out = 5)
 ylabs = as.character(round(ypos*1e3,0))
