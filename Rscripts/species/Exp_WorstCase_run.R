@@ -4,7 +4,7 @@ wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_bocconi = "/home/colombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100,wd_bocconi)
-choose_wd = wd_vec[4] # <--- modify here
+choose_wd = wd_vec[1] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/species")
 setwd(wd)
 
@@ -33,7 +33,7 @@ Exp_species_nfix_run = function(M,n,name,alpha = 0.05,Rmax = 100, M_max = 200, M
   Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
   
   set.seed(seed)
-  ptrue = sim_generic_species(name,M,n,alpha)
+  ptrue = sim_generic_species(name,M,c(n,alpha))
   # Define return object
   res_names = c("Mmax","Freq","PD","FDP","DirMulti","DirMulti_M")
   res = matrix(NA,nrow = 1, ncol = length(res_names))
@@ -126,10 +126,11 @@ Exp_species_nfix = function(name,M,n,Nrep = 100,
   
   # Sequential case
   if(!parallel){
-    res_list = lapply(seeds, function(seed) Exp_species_nfix_run(M=M, n=n, alpha=alpha, 
+    res_list = lapply(seeds, function(seed) Exp_species_nfix_run(M=M, n=n, name=name,
+                                                                 alpha=alpha, 
                                                                  Rmax=Rmax, M_max=M_max,
                                                                  M_DM=M_DM,
-                                                                 seed=seed, name=name) )
+                                                                 seed=seed) )
   }else{
     ## Parallel case
     cluster <- makeCluster(num_cores, type = "SOCK")
@@ -190,8 +191,9 @@ ExpRes_list = lapply( run_obj,
                       function(x){
                         Exp_species_nfix(name=name, M=x$M, n=n,
                                          Nrep=Nrep, alpha=alpha, Rmax=Rmax,
-                                         M_DM=ma,
-                                         M_max=M_max,seed0=x$seed)}  )
+                                         M_DM=ma, parallel = FALSE,
+                                         M_max=M_max,seed0=x$seed,
+                                         num_cores=num_cores)}  )
 
 
 
