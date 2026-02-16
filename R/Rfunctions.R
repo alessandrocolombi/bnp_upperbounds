@@ -4,8 +4,8 @@ sim_zipfs = function(M,s){
   w = sapply(1:M,function(j) j^(-s))
   w / sum(w)
 }
-sim_geom = function(M,a ){
-  w = sapply(0:(M-1),function(j) (1-a)^(j-1)  )
+sim_geom = function(M,a){
+  w = sapply(1:M,function(j) (a)^(j)  )
   w / sum(w)
 }
 sim_negbin = function(M,l,r){
@@ -868,4 +868,112 @@ fk_stable_beta_process <- function(c, sigma, gamma, base_rnd = base_rnd,
   theta <- base_rnd(length(w_list))
   
   list(w = w_list, theta = theta)
+}
+
+
+
+
+# GOF ---------------------------------------------------------------------
+
+SimModel_PD = function(Mmax,Nrep,params,seed = 091079){
+  sigma = params[1]; theta = params[2]
+  sim_PYP = r_SB(Nrep,Mmax,sigma,theta,seed)
+  sim_PYP = apply(sim_PYP, 1, sort, decreasing = TRUE)
+  # pyp_qnt = apply(sim_PYP, 1, quantile, probs = c(0.025,0.5,0.975))
+  sim_PYP
+}
+SimModel_FDP = function(Mmax,Nrep,params,seed = 091079){
+  set.seed(seed)
+  gamma = params[1]; Lambda = params[2]
+  M_mc = rpois(n=Nrep,lambda = Lambda) + 1
+  sim_FD = matrix(0,nrow = Nrep, ncol = Mmax)
+  ii = 1
+  for(ii in 1:Nrep){
+    w = rgamma(n = M_mc[ii], shape = gamma, rate = 1); w = w/sum(w); w = sort(w, decreasing = TRUE)
+    len = min(Mmax,M_mc[ii])
+    sim_FD[ii,1:len] = w[1:len]
+  }
+  sim_FD = apply(sim_FD, 1, sort, decreasing = TRUE)
+  # FD_qnt = apply(sim_FD, 1, quantile, probs = c(0.025,0.5,0.975))
+  sim_FD
+}
+SimModel_DirMulti = function(Mmax = NULL,Nrep,params,seed = 091079){
+  set.seed(seed)
+  gamma = params[1]; M = params[2]
+  sim_DM = matrix(0,nrow = Nrep, ncol = M)
+  ii = 1
+  for(ii in 1:Nrep){
+    w = rgamma(n = M, shape = gamma, rate = 1); w = w/sum(w); w = sort(w, decreasing = TRUE)
+    sim_DM[ii,] = w
+  }
+  sim_DM = apply(sim_DM, 1, sort, decreasing = TRUE)
+  # DM_qnt = apply(sim_DM, 1, quantile, probs = c(0.025,0.5,0.975))
+  sim_DM
+}
+SimModel_generic = function(model,Mmax,Nrep,params,seed = 091079){
+  if(model == "PD"){
+    SimModel_PD(Mmax,Nrep,params,seed)
+  }else if(model == "FDP"){
+    SimModel_FDP(Mmax,Nrep,params,seed)
+  }else if(model == "DirMulti"){
+    SimModel_DirMulti(Mmax,Nrep,params,seed)
+  }else{
+    stop("model must be PD or FDP or DirMulti")
+  }
+}
+
+SimData = function(n,ptrue_mat, seed = 091079 ){
+  set.seed(seed)
+  M = nrow(ptrue_mat); Nrep = ncol(ptrue_mat)
+  data_mat = apply(ptrue_mat, 2, function(ptrue) sample(1:M, size = n, replace = TRUE, prob = ptrue)) # n x Nrep
+  data_mat
+}
+
+GOF_generic = function(model,n,Mmax,Nrep,params,
+                       ptrue_mat = NULL,seed = 091079, AccCrv_length = 20){
+  res_names = c("Envelop_qnt","Freq.Rare","AccCrv")
+  res = vector("list", length = length(res_names))
+  names(res) = res_names
+  
+  if(model == "True"){
+    if(is.null(ptrue_mat))
+      stop("ptrue_mat must be a Nrep x M matrix if model is set to true")
+  }else{
+    # Simulate probs from the model
+    ptrue_mat = SimModel_generic(model,Mmax,Nrep,params,seed)
+  }
+  # Generate Nrep datasets
+  data_mat = SimData(n,ptrue_mat, seed)
+  
+  # a) Envelop plot
+  res$Envelop_qnt = apply(ptrue_mat, 1, quantile, probs = c(0.025,0.5,0.975))
+  # b) Frequency of rare species
+  res$Freq.Rare = apply(data_mat, 2, function(data){
+    n_i = tabulate(data, nbins = Mmax)
+    idx_obs = which(n_i > 0)
+    Kn = length(idx_obs)
+    data_obs = n_i[idx_obs]
+    r = 5; fr = rep(0,r); names(fr) = as.character(1:r)
+    for(i in 1:r){
+      fr[i] = length(which(data_obs == i))
+    }
+    fr
+  })
+  # c) Accumulation curve
+  if( n < 10)
+    stop("n must be larger than 10")
+  ngrid = round(seq(10,n,length.out = AccCrv_length))
+  mat <- lapply(ngrid, function(nn) {
+    data_mat_n <- SimData(nn,ptrue_mat, seed)
+    Kn_all = apply(data_mat_n, 2, function(data_n){
+      n_i = tabulate(data_n, nbins = Mmax)
+      idx_obs = which(n_i > 0)
+      length(idx_obs)
+    })
+  })
+  mat <- do.call(rbind,mat) 
+  AccCrv = apply(mat, 1, quantile, probs = c(0.025,0.5,0.975), na.rm = TRUE)
+  res$AccCrv = AccCrv
+  
+  res
 }

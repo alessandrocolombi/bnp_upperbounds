@@ -148,7 +148,7 @@ lgd_names = c("Freq","PD","FDP","Dir-Multi")
 
 # Options -----------------------------------------------------------------
 params_zipfs = list(0.9,1.02,2)
-params_geom = list(0.5,0.8,0.95)
+params_geom = list(0.85,0.9,0.95)
 params_unif = list(NA)
 params_negbin = list(c(1,0.003),c(5,0.003),c(1,0.01))
 experiments = list("Zipfs" = params_zipfs,
@@ -175,8 +175,9 @@ save_name_base = paste0("save/Species_")
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------
 
+igrid = c(2)
 ii = 1
-for(ii in 1:length(experiments)){
+for(ii in igrid){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])

@@ -31,150 +31,38 @@ mycol = c("darkorange","darkred","darkblue","lightpink","aquamarine")
 mycol2 = c("black","lightblue")
 lgd_names = c("Freq","PD","FDP","DirMulti-m","DirMulti")
 
-# Options -----------------------------------------------------------------
-experiments = list("WorstUnif")
-alpha <- alfa <- 0.05
-Nrep = 5000 
-n = 500
-Rmax = 100; RmaxFD = 50
-Mmin_grid = 100; Mmax_grid = 1000
-Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
-Nexp = length(Mgrid)
-M_max = 200
-
-seed0 = 42
-set.seed(seed0)
-seeds = sample(1:999999, size = Nexp)
-
-save_exp = TRUE # <---
-save_name_base = paste0("save/Species_") 
-img_fld = paste0("img/") 
-
-# n fix -----------------------------------------------------------------
-ii = 1
-name = experiments[[ii]]
-ma = find_ma_worstunif(n,alpha)
-q = 1-p_all_seen_uniform(n,ma)
-trim_q = get_first3digits(q,4)
-
-# Analysis ----------------------------------------------------------------
-filename = paste0(save_name_base,name,"_n",n,"_q",trim_q,".Rdat")
-load(filename)
-
-  
-# Coverage ----------------------------------------------------------------
-cov_mat <- do.call(rbind, lapply(ExpRes_list, function(x) {
-  n <- nrow(x)
-  if (n == 0) return(rep(NA_real_, ncol(x) - 1))
-  counts <- colSums(x[, -1, drop = FALSE] >= x[, 1])
-  counts / n
-}))
-colnames(cov_mat) <- colnames(ExpRes_list[[1]])[-1]
-cov_mat
-
-# Plot - mediana --------------------------------------------------------------------
-ExpRes_qnt = lapply(ExpRes_list, function(x) apply(x[,c(2:6)],2,quantile,probs = c(0.025,0.5,0.975)) )
-ExpRes_qnt <- simplify2array(ExpRes_qnt) # 3 x 5 x LMgrid
-  
-## axis labels
-ymax = (11/10) * max(ExpRes_qnt); ymin = 0
-ymax = 17.5*1e-3; ymin = 11.5*1e-3
-ylim_plot = c(ymin,ymax)
-ypos = seq(ymin,ymax,length.out = 5)
-ylabs = as.character(round(ypos*1e3,0))
-xmax = max(Mgrid); xmin = min(Mgrid)
-xlim_plot = c(0,xmax)
-xpos = Mgrid
-xlabs = as.character(Mgrid)
-  
-  
-img_name = paste0(img_fld,name,"_n",n,"_q",trim_q,".pdf")
-if(save_img)
-  pdf(img_name, width = width, height = height)
-par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-plot(0,0,  yaxt = "n", xaxt = "n",
-       xlab = "", ylab = "1000 * bound",
-       xlim = xlim_plot , ylim = ylim_plot, 
-       main = paste0(" "),
-       type = "n")
-grid(lty = 1,lwd = 1, col = "gray90" )
-axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
-axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
-mtext("M", side = 1, line = 2.5, cex = cex.axis)
-abline(h = 1/ma, lty = 1, lwd = 2, col = "black")
-for(ii in 1:dim(ExpRes_qnt)[2]){
-  points( x = Mgrid, y = ExpRes_qnt[2,ii,], 
-          type = "l", lwd = 5, col = mycol[ii] )
-  points( x = Mgrid, y = ExpRes_qnt[1,ii,], 
-          type = "l", lwd = 3, lty = 2, col = mycol[ii] )
-  points( x = Mgrid, y = ExpRes_qnt[3,ii,], 
-          type = "l", lwd = 3, lty = 2, col = mycol[ii] )
-}
-legend("topleft",lgd_names,
-         fill = mycol, 
-       cex = cex.legend, bty = "n", border = NA)
-if(save_img)
-  dev.off()
-  
-
-# Dir-Multi-m analysis -------------------------------------------------------------
-
-
-DirMulti_Ma_list = lapply(ExpRes_list, function(x) {
-    not_all_seen = which(x[,1] > 0)
-    y = x[not_all_seen,5]
-    y
-    # quantile(y, probs = c(0.025,0.5,0.975))
-    # quantile(y, probs = c(0.025,0.5,0.975))
-})
-DirMulti_Ma_qnt = lapply(ExpRes_list, function(x) {
-  not_all_seen = which(x[,1] > 0)
-  y = x[not_all_seen,5]
-  quantile(y, probs = c(0.025,0.5,0.975))
-})
-DirMulti_Ma_qnt = do.call(cbind,DirMulti_Ma_qnt)
-
-min(sapply(DirMulti_Ma_list, min))
- 
-  ## axis labels
-  ymax = (11/10) * max(sapply(DirMulti_Ma_list,max)); ymin = 0
-  ylim_plot = c(ymin,ymax)
-  ypos = seq(ymin,ymax,length.out = 5)
-  ylabs = as.character(round(ypos*1e3,0))
-  xmax = max(Mgrid); xmin = min(Mgrid)
-  xlim_plot = c(xmin,xmax)
-  xpos = Mgrid
-  xlabs = as.character(Mgrid)
-  
-  
-  img_name = paste0(img_fld,name,"_nfix_DirMultiMa",".pdf")
-  if(save_img)
-    pdf(img_name, width = width, height = height)
-  par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-  plot(0,0,  yaxt = "n", xaxt = "n",
-       xlab = "", ylab = "1000 * bound",
-       xlim = xlim_plot , ylim = ylim_plot, 
-       main = paste0(" "),
-       type = "n")
-  grid(lty = 1,lwd = 1, col = "gray90" )
-  axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
-  axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
-  mtext("M", side = 1, line = 2.5, cex = cex.axis)
-  abline(v = ma, lty = 2, lwd = 2, col = "red")
-  abline(h = 1/ma, lty = 3, lwd = 2, col = "black")
-  for(ii in 1:length(DirMulti_Ma_list)){
-    boxplot(DirMulti_Ma_list[[ii]], add = TRUE,
-            at = Mgrid[ii], yaxt = "n")
-  }
-
-
 # GOF ---------------------------------------------------------------------
-M = 500 
+params_zipfs = list(0.9,1.02,2)
+params_geom = list(0.5,1-0.8,1-0.95)
+params_unif = list(NA)
+params_negbin = list(c(1,0.003),c(5,0.003),c(1,0.01))
+experiments = list("Zipfs" = params_zipfs,
+                   "Geom" = params_geom,
+                   "Uniform" = params_unif,
+                   "NegBin" = params_negbin)
+Nrep = 200 # <---
+n = 500
+M = 400 
+M_max = 200
 seed = 232131
 set.seed(seed)
 Mmax = M; Nrep = 50
-AccCrv_length = 20
-ptrue = sim_generic_species(name,M,c(n,alpha))
+AccCrv_length = 50
+ii = 2; name = names(experiments)[[ii]]
+jj = 2
+params = experiments[[ii]][[jj]]
+trim_params = sapply(params, get_first3digits, 4)
+if(length(trim_params)>1)
+  trim_params = paste0(trim_params[1],"_",trim_params[2])
+
+
+ptrue = sim_generic_species(name,M,params)
+ptrue = sort(ptrue, decreasing = TRUE)
+
+Mplot = 100
+par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = 1 )
+plot(x = 1:Mplot, y = ptrue[1:Mplot], type = "p", pch = 16, cex = 0.5,
+     main = paste0(name,", ",ii,", ",jj), xlab = "", ylab = "")
 ptrue_mat = matrix(nrow = Nrep,ncol = M)
 ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
 
@@ -185,6 +73,7 @@ idx_obs = which(n_i > 0)
 Kn = length(idx_obs)
 data_obs = n_i[idx_obs]
 #0) TRUE
+model = "True"
 gof_true = GOF_generic(model,n,Mmax,Nrep,params,ptrue_mat = ptrue_mat, seed, AccCrv_length)
 
 #a) PD
@@ -198,7 +87,7 @@ alpha_mle = fit$par[1]
 theta_mle = fit$par[2]
 model = "PD"
 params = c(alpha_mle,theta_mle)
-gof_PD = GOF_generic(model,n,Mmax,Nrep,params,seed, AccCrv_length)
+gof_PD = GOF_generic(model=model,n=n,Mmax=Mmax,Nrep=Nrep,params=params,seed=seed,AccCrv_length=AccCrv_length)
 
 #b) FDP
 # Param. estimation (FD)
@@ -211,18 +100,19 @@ gamma_mle = fit$par[1]
 Lambda_mle = fit$par[2]
 model = "FDP"
 params = c(gamma_mle,Lambda_mle)
-gof_FDP = GOF_generic(model,n,Mmax,Nrep,params,seed, AccCrv_length)
+gof_FDP = GOF_generic(model=model,n=n,Mmax=Mmax,Nrep=Nrep,params=params,seed=seed,AccCrv_length=AccCrv_length)
 
 # Plots
 
 ## a - Envelop
-xmax = 100
-ymax = max( c(1/ma, max(gof_PD$Envelop_qnt), max(gof_FDP$Envelop_qnt)) )
+xmax = 500
+ymax = max( c(ptrue, max(gof_PD$Envelop_qnt), max(gof_FDP$Envelop_qnt)) )
 ypos = seq(0, ymax, length.out = 5)
 ylabs = round(ypos, 2)
 
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFEnv",".pdf")
 if(save_img)
-  pdf("img/WorstUnif_n500_q0051_GOFEnv.pdf", width = width, height = height)
+  pdf(img_name, width = width, height = height)
 par( mfrow = c(1,2), mar = c(3.5,6,1,1), mgp=c(4.4,1,0), bty = "l", las = 1, cex.lab = cex.lab )
 
 # PD
@@ -234,8 +124,7 @@ polygon( c(1:xmax, rev(1:xmax)),
          c(gof_PD$Envelop_qnt[1,1:xmax], rev(gof_PD$Envelop_qnt[3,1:xmax])),
          col = "#FDE333",
          border = NA) # plot in-sample bands
-points(x = 1:ma, y = rep(1/ma,ma), col = "darkred", pch = 16)
-points(x = (ma+1):xmax, y = rep(0,xmax - ma), col = "darkred", pch = 16)
+points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
 
 # FDP
 plot(0,0,main = " ", ylab = "#(FDP)", yaxt = "n", 
@@ -245,8 +134,8 @@ polygon( c(1:xmax, rev(1:xmax)),
          c(gof_FDP$Envelop_qnt[1,1:xmax], rev(gof_FDP$Envelop_qnt[3,1:xmax])),
          col = "#FDE333",
          border = NA) # plot in-sample bands
-points(x = 1:ma, y = rep(1/ma,ma), col = "darkred", pch = 16)
-points(x = (ma+1):xmax, y = rep(0,xmax - ma), col = "darkred", pch = 16)
+points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+
 if(save_img)
   dev.off()
 
@@ -264,8 +153,9 @@ for(l in 1:length(pos)){
   barplot_pos = c(barplot_pos, pos[l]+shift)
 }
 
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFRare",".pdf")
 if(save_img)
-  pdf("img/WorstUnif_n500_q0051_GOFRare.pdf",width = 14,height = 6)
+  pdf(img_name, width = width, height = height)
 par( mfrow = c(1,1), mar = c(3.5,4.5,1,1), mgp=c(3,1,0), bty = "l", las = 1, cex.lab = cex.lab )
 plot(0,0,type = "n",xlim = c(0,22), ylim = ylim_plot,
      xlab = "r", ylab = paste0("Freq.Rare"), 
@@ -302,8 +192,9 @@ ymin = 0
 ylim_plot = c(ymin,ymax)
 
 
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFACC",".pdf")
 if(save_img)
-  pdf("img/WorstUnif_n500_q0051_GOFAccCrv.pdf",width = 14,height = 6)
+  pdf(img_name, width = width, height = height)
 par( mfrow = c(1,1), mar = c(4,4.5,1,1), mgp=c(3,1,0), bty = "l", las = 1, cex.lab = cex.lab )
 plot(0,0,type = "n",xlim = c(0,max(ngrid)), ylim = ylim_plot,
      xlab = "n", ylab = paste0("Freq.Rare"), 
@@ -318,16 +209,3 @@ points(x = ngrid, y = gof_FDP$AccCrv[2,], type = "l", lwd = 5, col = "darkblue")
 if(save_img)
   dev.off()
 
-# Brutta ------------------------------------------------------------------
-
-  
-prova = lapply(ExpRes_list[2:10], function(x) {
-  not_all_seen = which(x[,1] > 0)
-  y = x[not_all_seen,c(3:6)]
-})
-prova  
-
-sopra = lapply(prova, function(x){
-  length(which(x[,2]< (1/ma)))/nrow(x)
-})
-sopra
