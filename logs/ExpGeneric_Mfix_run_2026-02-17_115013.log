@@ -1,0 +1,46 @@
+Registered S3 methods overwritten by 'RcppGSL':
+  method               from     
+  predict.fastLm       RcppEigen
+  print.fastLm         RcppEigen
+  summary.fastLm       RcppEigen
+  print.summary.fastLm RcppEigen
+
+ ----  Zipfs   1 / 3  ---- 
+
+ M =  200  || n =  100 
+
+ M =  200  || n =  200 
+
+ M =  200  || n =  300 
+
+ M =  200  || n =  400 
+
+ M =  200  || n =  500 
+
+ M =  200  || n =  600 
+
+ M =  200  || n =  700 
+
+ M =  200  || n =  800 
+
+ M =  200  || n =  900 
+
+ M =  200  || n =  1000 
+
+ ----  Zipfs   2 / 3  ---- 
+
+ M =  200  || n =  100 
+
+ M =  200  || n =  200 
+
+ M =  200  || n =  300 
+
+ M =  200  || n =  400 
+
+ M =  200  || n =  500 
+
+ M =  200  || n =  600 
+
+ M =  200  || n =  700 
+
+ M =  200  || n =  800 
