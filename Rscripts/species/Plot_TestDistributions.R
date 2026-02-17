@@ -9,10 +9,10 @@ experiments = list("Zipfs" = params_zipfs,
 
 
 M = 1000
-Mplot = 100
+Mplot = 1000
 n = 500
 
-ii = 2
+ii = 4
 for(ii in 1:length(experiments)){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])

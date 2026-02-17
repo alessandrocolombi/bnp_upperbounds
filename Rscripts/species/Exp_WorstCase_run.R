@@ -173,7 +173,7 @@ seed0 = 42
 set.seed(seed0)
 seeds = sample(1:999999, size = Nexp)
 
-save_exp = FALSE # <---
+save_exp = TRUE # <---
 save_name_base = paste0("save/Species_") 
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------

@@ -150,7 +150,7 @@ lgd_names = c("Freq","PD","FDP","Dir-Multi")
 params_zipfs = list(0.9,1.02,2)
 params_geom = list(0.85,0.9,0.95)
 params_unif = list(NA)
-params_negbin = list(c(1,0.003),c(5,0.003),c(1,0.01))
+params_negbin = list(c(1,0.003)) #list(c(1,0.003),c(5,0.003),c(1,0.01))
 experiments = list("Zipfs" = params_zipfs,
                    "Geom" = params_geom,
                    "Uniform" = params_unif,
@@ -158,7 +158,7 @@ experiments = list("Zipfs" = params_zipfs,
 
 alpha <- alfa <- 0.05
 num_cores = 25 # <---
-Nrep = 200 # <---
+Nrep = 5000 # <---
 n = 500
 Rmax = 100; RmaxFD = 50
 Mmin_grid = 50; Mmax_grid = 1000
@@ -175,7 +175,7 @@ save_name_base = paste0("save/Species_")
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------
 
-igrid = c(2)
+igrid = c(4)
 ii = 1
 for(ii in igrid){
   
