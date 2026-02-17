@@ -22,7 +22,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Custom functions --------------------------------------------------------
 
 # Plot options ------------------------------------------------------------------
-save_img = FALSE
+save_img = TRUE
 width = 12; height = 6
 cex.labels <- cex.lab <- 2
 cex.axis <- 2
@@ -443,7 +443,7 @@ ymax = max( ptrue ) * 1.33
 ypos = seq(0, ymax, length.out = 5)
 ylabs = round(ypos*1e3, 0)
 
-img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFEnv",".pdf")
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFEnv","_M200",".pdf")
 if(save_img)
   pdf(img_name, width = width, height = height)
 par( mfrow = c(1,3), mar = c(3.5,6,1,1), mgp=c(4.4,1,0), bty = "l", las = 1, cex.lab = cex.lab )
@@ -501,43 +501,6 @@ Kn_all = cbind(Kn_true,Kn_est)
 colnames(Kn_all) = c("True","PD","FDP","DirMulti")
 
 
-pos = c(1,3,5,7)
-shift = c(0)
-xpos = pos; xlabs = colnames(Kn_all)
-ymax = max(Kn_all);ymin = min(Kn_all)
-ylim_plot = c(ymin,ymax)
-
-barplot_pos = c()
-for(l in 1:length(pos)){
-  barplot_pos = c(barplot_pos, pos[l]+shift)
-}
-
-img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFKn",".pdf")
-if(save_img)
-  pdf(img_name, width = width, height = height)
-par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-plot(0,0,type = "n",xlim = c(0,8), ylim = ylim_plot,
-     xlab = "r", ylab = paste0("Kn"), 
-     xaxt = "n", yaxt = "n",
-     main = "",
-     cex.lab = cex.lab, cex.axis = cex.axis)
-axis(side = 2, las = 1, cex.axis = cex.axis)
-axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
-grid(lty = 1,lwd = 1, col = "gray90" )
-boxplot(Kn_all[,1], at = pos[1], add = T, 
-        col = "black", pch = 16, yaxt = "n", cex = 0.5)
-boxplot(Kn_all[,2], at = pos[2], add = T, 
-        col = "darkred", pch = 16, yaxt = "n", cex = 0.5)
-boxplot(Kn_all[,3], at = pos[3], add = T, 
-        col = "darkblue", pch = 16, yaxt = "n", cex = 0.5)
-boxplot(Kn_all[,4], at = pos[4], add = T, 
-        col = "lightblue", pch = 16, yaxt = "n", cex = 0.5)
-legend("bottomleft",c("True","PD","FDP","DirMulti"),
-       fill = c("black","darkred","darkblue","lightblue"), 
-       cex = cex.legend, bty = "n", border = NA)
-if(save_img)
-  dev.off()
-
 ## c - Kn and Kn_r
 rmax = 5
 Knr_true = apply(data_mat, 2, function(data){
@@ -582,7 +545,7 @@ Knr_list = lapply(Knr_list, function(x) {
 pos = c(1,3,5,7)
 xpos = pos; xlabs = c("True","PD","FDP","DirMulti")
 
-img_name = paste0("img/GOF/",name,"_",trim_params,"_GOF_Knr",".pdf")
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOF_Knr","_M200",".pdf")
 if(save_img)
   pdf(img_name, width = width+6, height = height)
 par( mfrow = c(2,3), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
@@ -639,7 +602,7 @@ ymax = max(FDP_M_plot);ymin = min(FDP_M_plot)
 ylim_plot = c(ymin,ymax)
 xpos = pos; xlabs = colnames(FDP_M_plot)
 
-img_name = paste0("img/GOF/",name,"_",trim_params,"_GOF_FDP_M_Mstar",".pdf")
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOF_FDP_M_Mstar","_M200",".pdf")
 if(save_img)
   pdf(img_name, width = width, height = height)
 par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )

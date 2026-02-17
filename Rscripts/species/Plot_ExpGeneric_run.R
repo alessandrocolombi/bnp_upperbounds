@@ -23,14 +23,14 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Custom functions --------------------------------------------------------
 
 # Plot options ------------------------------------------------------------------
-save_img = TRUE
+save_img = FALSE
 width = 12; height = 6
 cex.labels <- cex.lab <- 2
 cex.axis <- 2
 cex.legend <- 1.5
 mycol = c("darkorange","darkred","darkblue","lightblue")
 mycol2 = c("black","lightblue")
-lgd_names = c("Freq","PD","FDP","Dir-Multi")
+lgd_names = c("Oracle","Freq","PD","FDP","Dir-Multi")
 
 # Options -----------------------------------------------------------------
 params_zipfs = list(0.9,1.02,2)
@@ -68,7 +68,7 @@ for(ii in 1:length(experiments)){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 1
+  jj = 3
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
@@ -131,7 +131,7 @@ ii = 3
 for(ii in 3:3){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 2
+  jj = 1
   cov_mat_all = matrix(nrow = LMgrid, ncol = 0)
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
@@ -155,7 +155,7 @@ ii = 4
 for(ii in 4:4){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 2
+  jj = 1
   cov_mat_all = matrix(nrow = LMgrid, ncol = 0)
   for(jj in c(1,3)){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
@@ -176,12 +176,12 @@ for(ii in 4:4){
 }
 # CI length ---------------------------------------------------------------
 
-ii = 1
+ii = 3
 for(ii in 1:length(experiments)){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 2
+  jj = 1
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
@@ -194,11 +194,12 @@ for(ii in 1:length(experiments)){
     load(filename)
     
     # Plot
+    oracle = sapply(ExpRes_list, function(x) quantile(x[,1], 1-alpha))
     ExpRes_qnt = lapply(ExpRes_list, function(x) apply(x[,c(2:5)],2,quantile,probs = c(0.025,0.5,0.975)) )
     ExpRes_qnt <- simplify2array(ExpRes_qnt) # 3 x 5 x LMgrid
     
     ## axis labels
-    ymax = (11/10) * max(ExpRes_qnt); ymin = (10/11) * min(ExpRes_qnt)
+    ymax = (11/10) * max(ExpRes_qnt,oracle); ymin = (10/11) * min(ExpRes_qnt,oracle)
     # ymax = 17.5*1e-3; ymin = 11.5*1e-3
     ylim_plot = c(ymin,ymax)
     ypos = seq(ymin,ymax,length.out = 5)
@@ -222,16 +223,18 @@ for(ii in 1:length(experiments)){
     axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
     axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
     mtext("M", side = 1, line = 2.5, cex = cex.axis)
+    points( x = Mgrid, y = oracle, 
+            type = "l", lwd = 5, col = "black" )
     for(ij in 1:dim(ExpRes_qnt)[2]){
       points( x = Mgrid, y = ExpRes_qnt[2,ij,], 
               type = "l", lwd = 5, col = mycol[ij] )
-      # points( x = Mgrid, y = ExpRes_qnt[1,ij,], 
-      #         type = "l", lwd = 3, lty = 2, col = mycol[ij] )
+      # points( x = Mgrid, y = ExpRes_qnt[1,ij,],
+      # type = "l", lwd = 3, lty = 2, col = mycol[ij] )
       # points( x = Mgrid, y = ExpRes_qnt[3,ij,], 
       #         type = "l", lwd = 3, lty = 2, col = mycol[ij] )
     }
     legend("topleft",lgd_names,
-           fill = mycol, 
+           fill = c("black",mycol), 
            cex = cex.legend, bty = "n", border = NA)
     if(save_img)
       dev.off()
