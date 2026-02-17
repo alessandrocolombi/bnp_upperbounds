@@ -1,0 +1,48 @@
+Registered S3 methods overwritten by 'RcppGSL':
+  method               from     
+  predict.fastLm       RcppEigen
+  print.fastLm         RcppEigen
+  summary.fastLm       RcppEigen
+  print.summary.fastLm RcppEigen
+
+ ----  NegBin   1 / 1  ---- 
+
+ M =  50 
+
+ M =  100 
+
+ M =  150 
+
+ M =  200 
+
+ M =  250 
+
+ M =  300 
+
+ M =  350 
+
+ M =  400 
+
+ M =  450 
+
+ M =  500 
+
+ M =  550 
+
+ M =  600 
+
+ M =  650 
+
+ M =  700 
+
+ M =  750 
+
+ M =  800 
+
+ M =  850 
+
+ M =  900 
+
+ M =  950 
+
+ M =  1000 
