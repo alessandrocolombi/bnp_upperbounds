@@ -160,10 +160,9 @@ experiments = list("Zipfs" = params_zipfs,
 alpha <- alfa <- 0.05
 num_cores = 25 # <---
 Nrep = 5000 # <---
-n = 500
 Rmax = 100; RmaxFD = 50
-M = 200
-Nmin_grid = 100; Nmax_grid = 1000
+M = 1000
+Nmin_grid = 100; Nmax_grid = 2000
 Ngrid = seq(Nmin_grid,Nmax_grid,by = 100); LNgrid = length(Ngrid)
 Nexp = length(Ngrid)
 M_max = 200
@@ -175,9 +174,9 @@ seeds = sample(1:999999, size = Nexp)
 save_exp = TRUE # <---
 save_name_base = paste0("save/Species_") 
 img_fld = paste0("img/") 
-# n fix -----------------------------------------------------------------
+# M fix -----------------------------------------------------------------
 
-igrid = c(1:4)
+igrid = c(4)
 ii = 1
 for(ii in igrid){
   

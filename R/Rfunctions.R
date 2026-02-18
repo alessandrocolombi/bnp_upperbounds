@@ -977,3 +977,68 @@ GOF_generic = function(model,n,Mmax,Nrep,params,
   
   res
 }
+
+
+
+SimModel_Post_PD = function(Kn,Nj,params,Mmax,Nrep,seed = 091079){
+  if(length(Nj) != Kn)
+    stop("Nj must be a vector of length Kn, absolute frequencies are required")
+  
+  sigma_PD = params[1]; theta_PD = params[2]
+  shapes_PD = c(Nj - sigma_PD, theta_PD + Kn*sigma_PD)
+  betas_PD = matrix(0,nrow = Nrep, ncol = Kn+1)
+  betas_PD = t(apply(betas_PD,1,function(x){
+    y = rgamma(n = Kn+1, shape = shapes_PD, rate = 1); y/sum(y)
+  }))
+  Pprime = t(SimModel_PD(Mmax,Nrep,c(sigma_PD,theta_PD)))
+  Prob_post_PD = t(apply(cbind(betas_PD,Pprime), 1, function(x){
+    res = rep(0,length(x)-1)
+    res[1:Kn] = x[1:Kn]
+    beta_prime = x[Kn+1]
+    temp = x[(Kn+2):length(x)]
+    res[(Kn+1):length(res)] = beta_prime * temp
+    res
+  }))
+  Prob_post_PD
+}
+SimModel_Post_FDP = function(Kn,Nj,params,Mmax,Nrep,seed = 091079){
+  if(length(Nj) != Kn)
+    stop("Nj must be a vector of length Kn, absolute frequencies are required")
+  
+  n = sum(Nj)
+  gamma_FDP = params[1]; Lambda_FDP = params[2]
+  log_PMstar = rep(-Inf,Mmax) # Whole distribution (log-scale)
+  log_PMstar = sapply(0:(Mmax-1), function(m) log_qMpost(m,n,Kn,gamma_FDP,Lambda_FDP,500))
+  Mstar_MC = sample(0:(Mmax-1), size = Nrep, prob = exp(log_PMstar), replace = TRUE)
+  Prob_post_FDP = matrix(0,nrow = Nrep, ncol = Kn+Mmax)
+  for(b in 1:Nrep){
+    Mstar = Mstar_MC[b]
+    wj_unnorm = c(Nj+gamma_FDP,rep(gamma_FDP,Mstar))
+    w = rgamma(n = (Kn+Mstar), shape = wj_unnorm, rate = 1); w = w/sum(w)
+    Prob_post_FDP[b,1:(Kn+Mstar)] = w
+  }
+  Prob_post_FDP
+}
+SimModel_Post_DM = function(Kn,Nj,params,Mmax = NULL,Nrep,seed = 091079){
+  gamma_DM = params[1]; M = params[2]
+  wj_unnorm <- Nj + gamma_DM
+  gamma_mat <- matrix(
+    rgamma(n = M * Nrep, shape = rep(wj_unnorm, times = Nrep), rate = 1),
+    nrow = M, ncol = Nrep
+  )
+  gamma_mat <- sweep(gamma_mat, 2, colSums(gamma_mat), FUN = "/")
+  Prob_post_DM <- t(apply(gamma_mat, 2, sort, decreasing = TRUE))
+  # Prob_post_DM <- gamma_mat
+  Prob_post_DM
+}
+SimModel_Post_generic = function(model,Kn,Nj,params,Mmax,Nrep,seed = 091079){
+  if(model == "PD"){
+    SimModel_Post_PD(Kn,Nj,params,Mmax,Nrep,seed )
+  }else if(model == "FDP"){
+    SimModel_Post_FDP(Kn,Nj,params,Mmax,Nrep,seed )
+  }else if(model == "DirMulti"){
+    SimModel_Post_DM(Kn,Nj,params,Mmax,Nrep,seed )
+  }else{
+    stop("model must be PD or FDP or DirMulti")
+  }
+}

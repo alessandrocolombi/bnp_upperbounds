@@ -22,7 +22,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Custom functions --------------------------------------------------------
 
 # Plot options ------------------------------------------------------------------
-save_img = TRUE
+save_img = FALSE
 width = 12; height = 6
 cex.labels <- cex.lab <- 2
 cex.axis <- 2
@@ -30,8 +30,8 @@ cex.legend <- 1.5
 mycol = c("darkorange","darkred","darkblue","lightpink","aquamarine")
 mycol2 = c("black","lightblue")
 lgd_names = c("Freq","PD","FDP","DirMulti-m","DirMulti")
-
-# GOF ---------------------------------------------------------------------
+tcol = 0.25
+# GOF - single dataset ---------------------------------------------------------------------
 params_zipfs = list(0.9,1.02,2)
 params_geom = list(0.85,0.9,0.95)
 params_unif = list(NA)
@@ -42,14 +42,14 @@ experiments = list("Zipfs" = params_zipfs,
                    "NegBin" = params_negbin)
 Nrep = 200 # <---
 n = 500
-M = 200 
+M = 650 
 M_max = 200
 seed = 232131
 set.seed(seed)
 Mmax = M; Nrep = 50
 AccCrv_length = 50
 ii = 4; name = names(experiments)[[ii]]
-jj = 1
+jj = 3
 params = experiments[[ii]][[jj]]
 trim_params = sapply(params, get_first3digits, 4)
 if(length(trim_params)>1)
@@ -59,7 +59,7 @@ if(length(trim_params)>1)
 ptrue = sim_generic_species(name,M,params)
 ptrue = sort(ptrue, decreasing = TRUE)
 
-Mplot = 100
+Mplot = 1000
 par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = 1 )
 plot(x = 1:Mplot, y = ptrue[1:Mplot], type = "p", pch = 16, cex = 0.5,
      main = paste0(name,", ",ii,", ",jj), xlab = "", ylab = "")
@@ -72,6 +72,7 @@ n_i = tabulate(data, nbins = M)
 idx_obs = which(n_i > 0)
 Kn = length(idx_obs)
 data_obs = n_i[idx_obs]
+Nj_emp = n_i/n; Nj_emp = sort(Nj_emp, decreasing = TRUE)
 
 #0) TRUE
 model = "True"
@@ -84,8 +85,8 @@ fit <- optim(par = start_params, fn = llik_pyp,
              n = n, Kn = Kn, data_obs = data_obs, # extra parameters
              method = "L-BFGS-B",
              lower = c(0, -1), upper = c(1-1e-10, Inf)) 
-alpha_mle = fit$par[1]
-theta_mle = fit$par[2]
+alpha_mle = fit$par[1]; sigma_PD = alpha_mle
+theta_mle = fit$par[2]; theta_PD = theta_mle
 model = "PD"
 params = c(alpha_mle,theta_mle)
 gof_PD = GOF_generic(model=model,n=n,Mmax=Mmax,Nrep=Nrep,params=params,seed=seed,AccCrv_length=AccCrv_length)
@@ -97,8 +98,8 @@ fit <- optim(par = start_params, fn = llik_FD,
              n = n, Kn = Kn, data_obs = data_obs, M_max = M_max,# extra parameters
              method = "L-BFGS-B",
              lower = c(1e-5, 1e-5), upper = c(Inf, Inf)) 
-gamma_mle = fit$par[1]
-Lambda_mle = fit$par[2]
+gamma_mle = fit$par[1]; gamma_FDP = gamma_mle
+Lambda_mle = fit$par[2]; Lambda_FDP = Lambda_mle
 model = "FDP"
 params = c(gamma_mle,Lambda_mle)
 gof_FDP = GOF_generic(model=model,n=n,Mmax=Mmax,Nrep=Nrep,params=params,seed=seed,AccCrv_length=AccCrv_length)
@@ -110,24 +111,38 @@ fit <- optim(par = start_params, fn = llik_DirMult,
              n = n, M = M, data = n_i, # extra parameters
              method = "L-BFGS-B",
              lower = c(1e-10), upper = c(Inf))
-gamma_mle = fit$par[1]
+gamma_mle = fit$par[1]; gamma_DM = gamma_mle
 params = c(gamma_mle,M)
+model = "DirMulti"
 gof_DM = GOF_generic(model=model,n=n,Mmax=Mmax,Nrep=Nrep,params=params,seed=seed,AccCrv_length=AccCrv_length)
 
-# Plots
+BB = 2500
+#a) PD
+model = "PD"
+Prob_PD = SimModel_generic(model=model,params=c(sigma_PD, theta_PD),Mmax=3*M,Nrep=BB)
+
+#b) FDP
+model = "FDP"
+Prob_FDP = SimModel_generic(model=model,params=c(gamma_FDP,Lambda_FDP),Mmax=M+100,Nrep=BB)
+#b) DM
+model = "DirMulti"
+Prob_DM = SimModel_generic(model=model,params=c(gamma_DM,M),Mmax=NULL,Nrep=BB)
+
+
+# Envelop -----------------------------------------------------------------
+
 
 ## a - Envelop
 xmax = M
 # ymax = max( c(ptrue, max(gof_PD$Envelop_qnt), max(gof_FDP$Envelop_qnt), max(gof_DM$Envelop_qnt)) )
-ymax = max( ptrue ) * 1.33
+ymax = max( ptrue, Nj_emp ) * 1.33
 ypos = seq(0, ymax, length.out = 5)
 ylabs = round(ypos*1e3, 0)
 
-img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFEnv",".pdf")
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFEnv_M",M,"_1dataset",".pdf")
 if(save_img)
   pdf(img_name, width = width, height = height)
 par( mfrow = c(1,3), mar = c(3.5,6,1,1), mgp=c(4.4,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-
 # PD
 plot(0,0,main = " ", ylab = "Prob * 1000 (PD)", yaxt = "n", 
      xlim = c(0,xmax), ylim = c(0,ymax), type = "n",
@@ -137,7 +152,8 @@ polygon( c(1:xmax, rev(1:xmax)),
          c(gof_PD$Envelop_qnt[1,1:xmax], rev(gof_PD$Envelop_qnt[3,1:xmax])),
          col = "#FDE333",
          border = NA) # plot in-sample bands
-points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+# points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+points(x = 1:xmax, y = Nj_emp[1:xmax], col = "black", pch = 16)
 
 # FDP
 plot(0,0,main = " ", ylab = "Prob * 1000 (FDP)", yaxt = "n", 
@@ -147,7 +163,8 @@ polygon( c(1:xmax, rev(1:xmax)),
          c(gof_FDP$Envelop_qnt[1,1:xmax], rev(gof_FDP$Envelop_qnt[3,1:xmax])),
          col = "#FDE333",
          border = NA) # plot in-sample bands
-points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+# points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+points(x = 1:xmax, y = Nj_emp[1:xmax], col = "black", pch = 16)
 
 # DM
 plot(0,0,main = " ", ylab = "Prob * 1000 (DiriMulti)", yaxt = "n", 
@@ -157,58 +174,113 @@ polygon( c(1:xmax, rev(1:xmax)),
          c(gof_DM$Envelop_qnt[1,1:xmax], rev(gof_DM$Envelop_qnt[3,1:xmax])),
          col = "#FDE333",
          border = NA) # plot in-sample bands
-points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
-
-
+points(x = 1:xmax, y = Nj_emp[1:xmax], col = "black", pch = 16)
+# points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
 if(save_img)
   dev.off()
 
-
-## b - Frequency rare species
-pos = c(4,8,12,16,20)
-shift = c(-0.5,0,0.5)
-xpos = pos; xlabs = as.character(1:5)
-ymax = max(c( max(gof_true$Freq.Rare), max(gof_PD$Freq.Rare), max(gof_FDP$Freq.Rare) ))
-ymin = 0
-ylim_plot = c(ymin,ymax)
-
-barplot_pos = c()
-for(l in 1:length(pos)){
-  barplot_pos = c(barplot_pos, pos[l]+shift)
+## Prior - Kn_l ----------------------------------------------------------
+rmax = 5
+Knr_obs = rep(0,rmax+1)
+for(r in 0:rmax){
+  Nj_obs = Nj_emp * n
+  if(r==0){
+    Knr_obs[r+1] = length(which(Nj_obs > 0))
+  } else {
+    Knr_obs[r+1] = length(which(Nj_obs == r))
+  }
 }
 
-img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFRare",".pdf")
+
+data_mat_PD = SimData(n,Prob_PD) # n x Nrep
+Knr_PD = apply(data_mat_PD, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  res = matrix(0,nrow = 1, ncol = rmax+1)
+  colnames(res) = c("Kn",sapply(1:rmax, function(r) paste0("Kn_",r)))
+  res[1,] = sapply(0:rmax, function(r){
+    if(r == 0){
+      idx_obs = which(n_i > 0)
+    } else{
+      idx_obs = which(n_i == r)
+    }
+    length(idx_obs)
+  })
+})
+
+data_mat_FDP = SimData(n,Prob_FDP) # n x Nrep
+Knr_FDP = apply(data_mat_FDP, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  res = matrix(0,nrow = 1, ncol = rmax+1)
+  colnames(res) = c("Kn",sapply(1:rmax, function(r) paste0("Kn_",r)))
+  res[1,] = sapply(0:rmax, function(r){
+    if(r == 0){
+      idx_obs = which(n_i > 0)
+    } else{
+      idx_obs = which(n_i == r)
+    }
+    length(idx_obs)
+  })
+})
+
+data_mat_DM = SimData(n,Prob_DM) # n x Nrep
+Knr_DM = apply(data_mat_DM, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  res = matrix(0,nrow = 1, ncol = rmax+1)
+  colnames(res) = c("Kn",sapply(1:rmax, function(r) paste0("Kn_",r)))
+  res[1,] = sapply(0:rmax, function(r){
+    if(r == 0){
+      idx_obs = which(n_i > 0)
+    } else{
+      idx_obs = which(n_i == r)
+    }
+    length(idx_obs)
+  })
+})
+
+Knr_list = list(Knr_PD,Knr_FDP,Knr_DM)
+
+pos = c(2,4,6)
+xpos = pos; xlabs = c("PD","FDP","DirMulti")
+
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOF_Knr_prior","_M",M,".pdf")
 if(save_img)
-  pdf(img_name, width = width, height = height)
-par( mfrow = c(1,1), mar = c(3.5,4.5,1,1), mgp=c(3,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-plot(0,0,type = "n",xlim = c(0,22), ylim = ylim_plot,
-     xlab = "r", ylab = paste0("Freq.Rare"), 
-     xaxt = "n", yaxt = "n",
-     main = "",
-     cex.lab = cex.lab, cex.axis = cex.axis)
-axis(side = 2, las = 1, cex.axis = cex.axis)
-axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
-grid(lty = 1,lwd = 1, col = "gray90" )
-for(i in 1:nrow(gof_true$Freq.Rare)){
-  boxplot(gof_true$Freq.Rare[i,], at = pos[i]+shift[2], add = T, 
-          col = "black", pch = 16, yaxt = "n", cex = 0.5)
-}
-for(i in 1:nrow(gof_PD$Freq.Rare)){
-  boxplot(gof_PD$Freq.Rare[i,], at = pos[i]+shift[1], add = T, 
+  pdf(img_name, width = width+6, height = height)
+par( mfrow = c(2,3), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+for(ii in 1:(rmax+1)){
+  Kn_plot = do.call(rbind, lapply(Knr_list, function(x) x[ii,])) 
+  # Kn_plot = rbind(Knr_true[ii,],Kn_plot)
+  rownames(Kn_plot) = xlabs
+  ymax = max(Kn_plot);ymin = min(Kn_plot)
+  ylim_plot = c(ymin,ymax)
+  ylab = ifelse(ii == 1, "Kn", paste0("Kn_",ii-1))
+  
+  
+  plot(0,0,type = "n",xlim = c(1,7), ylim = ylim_plot,
+       xlab = "r", ylab = ylab, 
+       xaxt = "n", yaxt = "n",
+       main = "",
+       cex.lab = cex.lab, cex.axis = cex.axis)
+  axis(side = 2, las = 1, cex.axis = cex.axis)
+  axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+  grid(lty = 1,lwd = 1, col = "gray90" )
+  abline(h = Knr_obs[ii], lty = 2, lwd = 3, col = "red")
+  boxplot(Kn_plot[1,], at = pos[1], add = T, 
           col = "darkred", pch = 16, yaxt = "n", cex = 0.5)
-}
-for(i in 1:nrow(gof_FDP$Freq.Rare)){
-  boxplot(gof_FDP$Freq.Rare[i,], at = pos[i]+shift[3], add = T, 
+  boxplot(Kn_plot[2,], at = pos[2], add = T, 
           col = "darkblue", pch = 16, yaxt = "n", cex = 0.5)
+  boxplot(Kn_plot[3,], at = pos[3], add = T, 
+          col = "lightblue", pch = 16, yaxt = "n", cex = 0.5)
+  # legend("bottomleft",c("PD","FDP","DirMulti"),
+  #        fill = c("darkred","darkblue","lightblue"), 
+  #        cex = cex.legend, bty = "n", border = NA)
 }
-legend("topright",c("True","PD","FDP"),
-       fill = c("black","darkred","darkblue"), 
-       cex = cex.legend, bty = "n", border = NA)
 if(save_img)
   dev.off()
 
 
-## c - Accumulation curve
+
+
+## Accumulation curve ----------------------------------------------------------
 ngrid = round(seq(10,n,length.out = AccCrv_length))
 xpos = ngrid; xlabs = as.character(ngrid)
 ymax = max(c( max(gof_true$AccCrv), max(gof_PD$AccCrv), max(gof_FDP$AccCrv) ))
@@ -246,88 +318,206 @@ if(save_img)
   dev.off()
 
 
+## Posterior ------------------------------------------------------------
+BB = 2500
+
+#a) PD
+model = "PD"
+Prob_post_PD = SimModel_Post_generic(model=model,Kn=Kn,Nj=Nj_emp[1:Kn]*n,
+                                     params=c(sigma_PD, theta_PD),Mmax=3*M,
+                                     Nrep=BB)
+Envelop_PD_qnt = apply(Prob_post_PD, 2, quantile, probs = c(0.025,0.5,0.975))
+Prob_postMean_PD = colMeans(Prob_post_PD)
+
+#b) FDP
+model = "FDP"
+Prob_post_FDP = SimModel_Post_generic(model=model,Kn=Kn,Nj=Nj_emp[1:Kn]*n,
+                                     params=c(gamma_FDP,Lambda_FDP),Mmax=3*M,
+                                     Nrep=BB)
+Envelop_FDP_qnt = apply(Prob_post_FDP, 2, quantile, probs = c(0.025,0.5,0.975))
+Prob_postMean_FDP = colMeans(Prob_post_FDP)
 
 
-# Deviance ----------------------------------------------------------------
+#c) DirMulti
+model = "DirMulti"
+Prob_post_DM = SimModel_Post_generic(model=model,Kn=Kn,Nj=Nj_emp[1:Kn]*n,
+                                      params=c(gamma_DM,M),Mmax=NULL,
+                                      Nrep=BB)
+Envelop_DM_qnt = apply(Prob_post_DM, 2, quantile, probs = c(0.025,0.5,0.975))
+Prob_postMean_DM = colMeans(Prob_post_DM)
 
-#a) Generate multiple datasets
-data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
-Deviance = t(apply(data_mat, 2, function(data){
-  n_i = tabulate(data, nbins = M)
-  idx_obs = which(n_i > 0)
-  Kn = length(idx_obs)
-  data_obs = n_i[idx_obs]
-  
-  res = matrix(nrow = 1, ncol = 3)
-  colnames(res) = c("PD","FDP","DirMulti")
-  #a) PD
-  # Param. estimation (PYP)
-  start_params <- c(alpha = 0.5, theta = 1)
-  fit <- optim(par = start_params, fn = llik_pyp, 
-               n = n, Kn = Kn, data_obs = data_obs, # extra parameters
-               method = "L-BFGS-B",
-               lower = c(0, -1), upper = c(1-1e-10, Inf)) 
-  res[1,1] = 2*fit$value
-  
-  #b) FDP
-  # Param. estimation (FDP)
-  start_params <- c(gamma = 0.1, Lambda = Kn)
-  fit <- optim(par = start_params, fn = llik_FD, 
-               n = n, Kn = Kn, data_obs = data_obs, M_max = M_max,# extra parameters
-               method = "L-BFGS-B",
-               lower = c(1e-5, 1e-5), upper = c(Inf, Inf)) 
-  gamma_mle = fit$par[1]
-  Lambda_mle = fit$par[2]
-  res[1,2] = 2*fit$value  
-  
-  #c) Dirichlet-Multinomial --> M = M
-  # Param. estimation (DirMulti)
-  start_params <- c(gamma = 0.5)
-  fit <- optim(par = start_params, fn = llik_DirMult,
-               n = n, M = M, data = n_i, # extra parameters
-               method = "L-BFGS-B",
-               lower = c(1e-10), upper = c(Inf))
-  res[1,3] = 2*fit$value  
-  
-  res
-})) # Nrep x 3 matrix
 
-## b - Deviance plot
-pos = c(2,4,6)
-shift = c(0)
-xpos = pos; xlabs = as.character(1:3)
-ymax = max(Deviance);ymin = min(Deviance)
-ylim_plot = c(ymin,ymax)
-
-barplot_pos = c()
-for(l in 1:length(pos)){
-  barplot_pos = c(barplot_pos, pos[l]+shift)
-}
-
-img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFDev",".pdf")
+## Plot
+xmax = M
+ymax = max( ptrue, Nj_emp ) * 1.02
+ypos = seq(0, ymax, length.out = 5)
+ylabs = round(ypos*1e3, 0)
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFEnv_post_M",M,"_1dataset",".pdf")
 if(save_img)
   pdf(img_name, width = width, height = height)
-par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-plot(0,0,type = "n",xlim = c(1,7), ylim = ylim_plot,
-     xlab = "r", ylab = paste0("Deviance"), 
-     xaxt = "n", yaxt = "n",
-     main = "",
-     cex.lab = cex.lab, cex.axis = cex.axis)
-axis(side = 2, las = 1, cex.axis = cex.axis)
-axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
-grid(lty = 1,lwd = 1, col = "gray90" )
-boxplot(Deviance[,1], at = pos[1], add = T, 
-        col = "darkred", pch = 16, yaxt = "n", cex = 0.5)
-boxplot(Deviance[,2], at = pos[2], add = T, 
-        col = "darkblue", pch = 16, yaxt = "n", cex = 0.5)
-boxplot(Deviance[,3], at = pos[3], add = T, 
-        col = "lightblue", pch = 16, yaxt = "n", cex = 0.5)
-legend("bottomleft",c("PD","FDP","DirMulti"),
-       fill = c("darkred","darkblue","lightblue"), 
-       cex = cex.legend, bty = "n", border = NA)
+par( mfrow = c(1,3), mar = c(3.5,6,1,1), mgp=c(4.4,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+# PD
+plot(0,0,main = " ", ylab = "Prob * 1000 (PD)", yaxt = "n", 
+     xlim = c(0,(M+50)), ylim = c(0,ymax), type = "n",xlab = "",cex.axis = cex.axis)
+axis( side = 2, at = ypos, labels = ylabs, las = 1, cex.axis = cex.axis) 
+# points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+points(x = 1:xmax, y = Nj_emp[1:xmax], col = "black", pch = 16)
+points(x = 1:(M+50), y = Prob_postMean_PD[1:(M+50)], col = "pink", pch = 16)
+polygon( c(1:xmax, rev(1:xmax)),
+         c(gof_PD$Envelop_qnt[1,1:xmax], rev(gof_PD$Envelop_qnt[3,1:xmax])),
+         col = scales::alpha("#FDE333",0.5),
+         border = NA) # plot in-sample bands
+polygon( c(1:((M+50)), rev(1:((M+50)))),
+         c(Envelop_PD_qnt[1,1:(M+50)], rev(Envelop_PD_qnt[3,1:((M+50))])),
+         col = scales::alpha("pink",0.5),
+         border = NA) # plot in-sample bands
+# FDP
+plot(0,0,main = " ", ylab = "Prob * 1000 (FDP)", yaxt = "n", 
+     xlim = c(0,(M+50)), ylim = c(0,ymax), type = "n",xlab = "",cex.axis = cex.axis)
+axis( side = 2, at = ypos, labels = ylabs, las = 1, cex.axis = cex.axis) 
+# points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+points(x = 1:xmax, y = Nj_emp[1:xmax], col = "black", pch = 16)
+points(x = 1:(M+50), y = Prob_postMean_FDP[1:(M+50)], col = "pink", pch = 16)
+polygon( c(1:xmax, rev(1:xmax)),
+         c(gof_FDP$Envelop_qnt[1,1:xmax], rev(gof_FDP$Envelop_qnt[3,1:xmax])),
+         col = scales::alpha("#FDE333",0.5),
+         border = NA) # plot in-sample bands
+polygon( c(1:(M+50), rev(1:(M+50))),
+         c(Envelop_FDP_qnt[1,1:(M+50)], rev(Envelop_FDP_qnt[3,1:(M+50)])),
+         col = scales::alpha("pink",0.5),
+         border = NA) # plot in-sample bands
+# DM
+plot(0,0,main = " ", ylab = "Prob * 1000 (DiriMulti)", yaxt = "n", 
+     xlim = c(0,xmax), ylim = c(0,ymax), type = "n",xlab = "",cex.axis = cex.axis)
+axis( side = 2, at = ypos, labels = ylabs, las = 1, cex.axis = cex.axis) 
+# points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+points(x = 1:xmax, y = Nj_emp[1:xmax], col = "black", pch = 16)
+points(x = 1:(M+50), y = Prob_postMean_DM[1:(M+50)], col = "pink", pch = 16)
+polygon( c(1:xmax, rev(1:xmax)),
+         c(gof_DM$Envelop_qnt[1,1:xmax], rev(gof_DM$Envelop_qnt[3,1:xmax])),
+         col = scales::alpha("#FDE333",0.5),
+         border = NA) # plot in-sample bands
+polygon( c(1:xmax, rev(1:xmax)),
+         c(Envelop_DM_qnt[1,1:xmax], rev(Envelop_DM_qnt[3,1:xmax])),
+         col = scales::alpha("pink",0.5),
+         border = NA) # plot in-sample bands
 if(save_img)
   dev.off()
 
+
+## Posterior - Kn_l ----------------------------------------------------------
+rmax = 5
+data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+Knr_true = apply(data_mat, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  res = matrix(0,nrow = 1, ncol = rmax+1)
+  colnames(res) = c("Kn",sapply(1:rmax, function(r) paste0("Kn_",r)))
+  res[1,] = sapply(0:rmax, function(r){
+    if(r == 0){
+      idx_obs = which(n_i > 0)
+    } else{
+      idx_obs = which(n_i == r)
+    }
+    length(idx_obs)
+  })
+})
+rownames(Knr_true) = c("Kn",sapply(1:rmax, function(r) paste0("Kn_",r))) # rmax+1 x Nrep
+
+Knr_obs = rep(0,rmax+1)
+for(r in 0:rmax){
+  Nj_obs = Nj_emp * n
+  if(r==0){
+    Knr_obs[r+1] = length(which(Nj_obs > 0))
+  } else {
+    Knr_obs[r+1] = length(which(Nj_obs == r))
+  }
+}
+
+
+data_mat_PD = SimData(n,t(Prob_post_PD)) # n x Nrep
+Knr_PD = apply(data_mat_PD, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  res = matrix(0,nrow = 1, ncol = rmax+1)
+  colnames(res) = c("Kn",sapply(1:rmax, function(r) paste0("Kn_",r)))
+  res[1,] = sapply(0:rmax, function(r){
+    if(r == 0){
+      idx_obs = which(n_i > 0)
+    } else{
+      idx_obs = which(n_i == r)
+    }
+    length(idx_obs)
+  })
+})
+
+data_mat_FDP = SimData(n,t(Prob_post_FDP)) # n x Nrep
+Knr_FDP = apply(data_mat_FDP, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  res = matrix(0,nrow = 1, ncol = rmax+1)
+  colnames(res) = c("Kn",sapply(1:rmax, function(r) paste0("Kn_",r)))
+  res[1,] = sapply(0:rmax, function(r){
+    if(r == 0){
+      idx_obs = which(n_i > 0)
+    } else{
+      idx_obs = which(n_i == r)
+    }
+    length(idx_obs)
+  })
+})
+
+data_mat_DM = SimData(n,t(Prob_post_DM)) # n x Nrep
+Knr_DM = apply(data_mat, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  res = matrix(0,nrow = 1, ncol = rmax+1)
+  colnames(res) = c("Kn",sapply(1:rmax, function(r) paste0("Kn_",r)))
+  res[1,] = sapply(0:rmax, function(r){
+    if(r == 0){
+      idx_obs = which(n_i > 0)
+    } else{
+      idx_obs = which(n_i == r)
+    }
+    length(idx_obs)
+  })
+})
+
+Knr_list = list(Knr_PD,Knr_FDP,Knr_DM)
+
+pos = c(2,4,6)
+xpos = pos; xlabs = c("PD","FDP","DirMulti")
+
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOF_Knr_post","_M",M,".pdf")
+if(save_img)
+  pdf(img_name, width = width+6, height = height)
+par( mfrow = c(2,3), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+for(ii in 1:(rmax+1)){
+  Kn_plot = do.call(rbind, lapply(Knr_list, function(x) x[ii,])) 
+  # Kn_plot = rbind(Knr_true[ii,],Kn_plot)
+  rownames(Kn_plot) = xlabs
+  ymax = max(Kn_plot);ymin = min(Kn_plot)
+  ylim_plot = c(ymin,ymax)
+  ylab = ifelse(ii == 1, "Kn", paste0("Kn_",ii-1))
+  
+  
+  plot(0,0,type = "n",xlim = c(1,7), ylim = ylim_plot,
+       xlab = "r", ylab = ylab, 
+       xaxt = "n", yaxt = "n",
+       main = "",
+       cex.lab = cex.lab, cex.axis = cex.axis)
+  axis(side = 2, las = 1, cex.axis = cex.axis)
+  axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+  grid(lty = 1,lwd = 1, col = "gray90" )
+  abline(h = Knr_obs[ii], lty = 2, lwd = 3, col = "red")
+  boxplot(Kn_plot[1,], at = pos[1], add = T, 
+          col = "darkred", pch = 16, yaxt = "n", cex = 0.5)
+  boxplot(Kn_plot[2,], at = pos[2], add = T, 
+          col = "darkblue", pch = 16, yaxt = "n", cex = 0.5)
+  boxplot(Kn_plot[3,], at = pos[3], add = T, 
+          col = "lightblue", pch = 16, yaxt = "n", cex = 0.5)
+  # legend("bottomleft",c("PD","FDP","DirMulti"),
+  #        fill = c("darkred","darkblue","lightblue"), 
+  #        cex = cex.legend, bty = "n", border = NA)
+}
+if(save_img)
+  dev.off()
 
 
 
@@ -365,6 +555,13 @@ ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
 
 #a) Generate and fit multiple datasets
 data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+Nj_emp = apply(data_mat, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  n_i = n_i / length(data)
+  # sort(n_i, decreasing = TRUE)
+}) # M x Nrep
+Nj_emp_qnt = apply(Nj_emp, 1, quantile, probs = c(0.025,0.5,0.975))
+Nj_emp_avg = colMeans(t(Nj_emp))
 #b) Estimate parameters in each dataset
 ParEst = t(apply(data_mat, 2, function(data){
   n_i = tabulate(data, nbins = M)
@@ -438,12 +635,12 @@ ProbEst_qnt[,1:5,]
 
 ## a - Envelop
 xmax = M
-# ymax = max( c(ptrue, max(gof_PD$Envelop_qnt), max(gof_FDP$Envelop_qnt), max(gof_DM$Envelop_qnt)) )
-ymax = max( ptrue ) * 1.33
+# ymax = max( c(ptrue, max(gof_PD$Envelop_qnt), max(gof_FDP$Envelop_qnt), max(gof_DM$Envelop_qnt), max(Nj_emp_qnt)) )
+ymax = max( c(ptrue, max(Nj_emp_qnt)) ) * 1.33
 ypos = seq(0, ymax, length.out = 5)
 ylabs = round(ypos*1e3, 0)
 
-img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFEnv","_M200",".pdf")
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFEnv","_M",M,".pdf")
 if(save_img)
   pdf(img_name, width = width, height = height)
 par( mfrow = c(1,3), mar = c(3.5,6,1,1), mgp=c(4.4,1,0), bty = "l", las = 1, cex.lab = cex.lab )
@@ -458,6 +655,7 @@ polygon( c(1:xmax, rev(1:xmax)),
          col = "#FDE333",
          border = NA) # plot in-sample bands
 points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+# points(x = 1:xmax, y = Nj_emp_avg[1:xmax], col = "black", pch = 4)
 
 # FDP
 plot(0,0,main = " ", ylab = "Prob * 1000 (FDP)", yaxt = "n", 
@@ -468,6 +666,7 @@ polygon( c(1:xmax, rev(1:xmax)),
          col = "#FDE333",
          border = NA) # plot in-sample bands
 points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
+# points(x = 1:xmax, y = Nj_emp_avg[1:xmax], col = "black", pch = 4)
 
 # DM
 plot(0,0,main = " ", ylab = "Prob * 1000 (DiriMulti)", yaxt = "n", 
@@ -478,7 +677,7 @@ polygon( c(1:xmax, rev(1:xmax)),
          col = "#FDE333",
          border = NA) # plot in-sample bands
 points(x = 1:xmax, y = ptrue[1:xmax], col = "darkred", pch = 16)
-
+# points(x = 1:xmax, y = Nj_emp_avg[1:xmax], col = "black", pch = 4)
 
 if(save_img)
   dev.off()
@@ -621,6 +820,87 @@ boxplot(FDP_M_plot[,2], at = pos[2], add = T,
 if(save_img)
   dev.off()
 
+
+
+
+
+## Deviance ----------------------------------------------------------------
+
+Deviance = t(apply(data_mat, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  idx_obs = which(n_i > 0)
+  Kn = length(idx_obs)
+  data_obs = n_i[idx_obs]
+  
+  res = matrix(nrow = 1, ncol = 3)
+  colnames(res) = c("PD","FDP","DirMulti")
+  #a) PD
+  # Param. estimation (PYP)
+  start_params <- c(alpha = 0.5, theta = 1)
+  fit <- optim(par = start_params, fn = llik_pyp, 
+               n = n, Kn = Kn, data_obs = data_obs, # extra parameters
+               method = "L-BFGS-B",
+               lower = c(0, -1), upper = c(1-1e-10, Inf)) 
+  res[1,1] = 2*fit$value
+  
+  #b) FDP
+  # Param. estimation (FDP)
+  start_params <- c(gamma = 0.1, Lambda = Kn)
+  fit <- optim(par = start_params, fn = llik_FD, 
+               n = n, Kn = Kn, data_obs = data_obs, M_max = M_max,# extra parameters
+               method = "L-BFGS-B",
+               lower = c(1e-5, 1e-5), upper = c(Inf, Inf)) 
+  gamma_mle = fit$par[1]
+  Lambda_mle = fit$par[2]
+  res[1,2] = 2*fit$value  
+  
+  #c) Dirichlet-Multinomial --> M = M
+  # Param. estimation (DirMulti)
+  start_params <- c(gamma = 0.5)
+  fit <- optim(par = start_params, fn = llik_DirMult,
+               n = n, M = M, data = n_i, # extra parameters
+               method = "L-BFGS-B",
+               lower = c(1e-10), upper = c(Inf))
+  res[1,3] = 2*fit$value  
+  
+  res
+})) # Nrep x 3 matrix
+
+## b - Deviance plot
+pos = c(2,4,6)
+shift = c(0)
+xpos = pos; xlabs = as.character(1:3)
+ymax = max(Deviance);ymin = min(Deviance)
+ylim_plot = c(ymin,ymax)
+
+barplot_pos = c()
+for(l in 1:length(pos)){
+  barplot_pos = c(barplot_pos, pos[l]+shift)
+}
+
+img_name = paste0("img/GOF/",name,"_",trim_params,"_GOFDev",".pdf")
+if(save_img)
+  pdf(img_name, width = width, height = height)
+par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+plot(0,0,type = "n",xlim = c(1,7), ylim = ylim_plot,
+     xlab = "r", ylab = paste0("Deviance"), 
+     xaxt = "n", yaxt = "n",
+     main = "",
+     cex.lab = cex.lab, cex.axis = cex.axis)
+axis(side = 2, las = 1, cex.axis = cex.axis)
+axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+grid(lty = 1,lwd = 1, col = "gray90" )
+boxplot(Deviance[,1], at = pos[1], add = T, 
+        col = "darkred", pch = 16, yaxt = "n", cex = 0.5)
+boxplot(Deviance[,2], at = pos[2], add = T, 
+        col = "darkblue", pch = 16, yaxt = "n", cex = 0.5)
+boxplot(Deviance[,3], at = pos[3], add = T, 
+        col = "lightblue", pch = 16, yaxt = "n", cex = 0.5)
+legend("bottomleft",c("PD","FDP","DirMulti"),
+       fill = c("darkred","darkblue","lightblue"), 
+       cex = cex.legend, bty = "n", border = NA)
+if(save_img)
+  dev.off()
 
 
 
