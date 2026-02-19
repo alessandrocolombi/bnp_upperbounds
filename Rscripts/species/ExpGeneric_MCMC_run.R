@@ -67,7 +67,7 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params,
                             M=M,seed = seed, M_max = 500)
   gammas = fit$gamma_mcmc
   gamma = mean(gammas[(Niter/2):Niter])
-  ubDM = exp(compute_log_UB_DirMulti( Rmax, gamma_mle, M, Kn, n, alpha ))
+  ubDM = exp(compute_log_UB_DirMulti( Rmax, gamma, M, Kn, n, alpha ))
   ubDM = min(ubDM,1)
   #f) Save results
   res[1,1] = Mmax
