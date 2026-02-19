@@ -699,7 +699,7 @@ double log_eppfPYP( const int& n, const int& Kn, const std::vector<int>& n_j,
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
-//	Finite species model
+//	Finite species model - FDP
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 
 double log_dPois1(const int& x, const double& Lambda)
@@ -712,8 +712,8 @@ double log_dPois1(const int& x, const double& Lambda)
 
 // [[Rcpp::export]]
 double compute_logV( const int& Kn, const int& n, 
-				     const double& gamma, const double& Lambda, 
-				     unsigned int M_max )
+				             const double& gamma, const double& Lambda, 
+				             unsigned int M_max )
 {
 	if(n < 1)
 		throw std::runtime_error("Error in compute_log_Vprior: n must be at least one");
@@ -826,9 +826,9 @@ double log_eppfFD( const int& n, const int& Kn, const std::vector<int>& n_j,
 
 
 double log_qMpost( const int& m, const int& n, const int& Kn, 
-				   const double& gamma, const double& Lambda, 
-				   const double& logV,
-				   unsigned int M_max )
+				           const double& gamma, const double& Lambda, 
+				           const double& logV,
+				           unsigned int M_max )
 {
 	if(m < 0)
 		throw std::runtime_error("Error in log_qMpost: m must be positive or zero");
@@ -861,8 +861,8 @@ double log_qMpost( const int& m, const int& n, const int& Kn,
 
 // [[Rcpp::export]]
 double log_qMpost( const int& m, const int& n, const int& Kn, 
-				   const double& gamma, const double& Lambda, 
-				   unsigned int M_max )
+				           const double& gamma, const double& Lambda, 
+				           unsigned int M_max )
 {
 	if(m < 0)
 		throw std::runtime_error("Error in log_qMpost: m must be positive or zero");
@@ -1025,6 +1025,82 @@ double compute_log_UBMarkov_FD( const int& Rmax, const double& gamma, const doub
 	return log_res;
 }
 
+
+// [[Rcpp::export]]
+Rcpp::List GibbsSampler_FDP(const int& n, const int& Kn, const std::vector<int>& n_j, 
+														const int& Niter,
+				                    const double& gamma0, const double& Lambda0, 
+				                    const double& a_gamma, const double& b_gamma, 
+				                    const double& a_Lambda, const double& b_Lambda, 
+				                    double AdpVar_gamma, double AdpVar_Lambda, 
+				                    bool UpdateGamma, bool UpdateLambda,
+				                    unsigned int M_max, unsigned int seed )
+{
+	if(Niter <= 0)
+		throw std::runtime_error("Error in GibbsSampler_FDP: Niter must be > 0 ");
+	
+	// Engine
+	sample::GSL_RNG engine(seed);
+	sample::rnorm normal;
+	sample::runif uniform;
+	// Main quantities
+	Rcpp::NumericVector gamma_mcmc(Niter+1, 0.0); gamma_mcmc[0] = gamma0;
+	Rcpp::NumericVector Lambda_mcmc(Niter+1, 0.0); Lambda_mcmc[0] = Lambda0;
+	// Start main loop
+	for(int iter=1; iter <= Niter; iter++ ){
+		double ww_g{ std::pow(iter,-0.7) };
+		if(UpdateGamma){
+			// If here, update gamma
+			double log_gamma_old = std::log(gamma_mcmc[iter-1]);
+			double log_gamma_new = normal(engine, log_gamma_old, AdpVar_gamma);
+			double gamma_new = std::exp(log_gamma_new);
+			double log_lik_new = log_eppfFD(n, Kn, n_j, gamma_new, Lambda_mcmc[iter-1], M_max );
+			double log_lik_old = log_eppfFD(n, Kn, n_j, gamma_mcmc[iter-1], Lambda_mcmc[iter-1], M_max );
+			double log_prior_new =  (a_gamma-1.0)*log_gamma_new - b_gamma*gamma_new;
+			double log_prior_old =  (a_gamma-1.0)*log_gamma_old - b_gamma*gamma_mcmc[iter-1];
+			double log_acc = log_lik_new + log_prior_new - log_lik_old - log_prior_old + log_gamma_new - log_gamma_old;
+			
+			double u_acc = uniform(engine);
+			if( u_acc  < std::min(1.0, std::exp(log_acc)) ){
+			    gamma_mcmc[iter] = gamma_new;
+			}
+			else{
+				gamma_mcmc[iter] = gamma_mcmc[iter-1];
+			}
+			AdpVar_gamma *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
+		}
+		else{
+			gamma_mcmc[iter] = gamma_mcmc[iter-1];
+		}
+
+
+		if(UpdateLambda){
+			// If here, update Lambda
+			double log_Lambda_old = std::log(Lambda_mcmc[iter-1]);
+			double log_Lambda_new = normal(engine, log_Lambda_old, AdpVar_Lambda);
+			double Lambda_new = std::exp(log_Lambda_new);
+			double log_lik_new = log_eppfFD(n, Kn, n_j, gamma_mcmc[iter], Lambda_new, M_max );
+			double log_lik_old = log_eppfFD(n, Kn, n_j, gamma_mcmc[iter], Lambda_mcmc[iter-1], M_max );
+			double log_prior_new =  (a_Lambda-1.0)*log_Lambda_new - b_Lambda*Lambda_new;
+			double log_prior_old =  (a_Lambda-1.0)*log_Lambda_old - b_Lambda*Lambda_mcmc[iter-1];
+			double log_acc = log_lik_new + log_prior_new - log_lik_old - log_prior_old + log_Lambda_new - log_Lambda_old;
+			
+			double u_acc = uniform(engine);
+			if( u_acc  < std::min(1.0, std::exp(log_acc)) ){
+			    Lambda_mcmc[iter] = Lambda_new;
+			}
+			else{
+				Lambda_mcmc[iter] = Lambda_mcmc[iter-1];
+			}
+			AdpVar_Lambda *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
+		}
+		else{
+			Lambda_mcmc[iter] = Lambda_mcmc[iter-1];
+		}
+	}
+
+	return Rcpp::List::create( Rcpp::Named("gamma_mcmc") = gamma_mcmc, Rcpp::Named("Lambda_mcmc") = Lambda_mcmc );
+}
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 //	Species - Dirichlet Multinomial (M known)
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1140,6 +1216,71 @@ double compute_log_UB_DirMulti( const int& Rmax, const double& gamma, const int&
 	return log_res;
 }
 
+// [[Rcpp::export]]
+Rcpp::List GibbsSampler_DirMulti(const int& n, const std::vector<int>& n_j, const int& M,
+														     const int& Niter,
+				                         const double& gamma0, 
+				                         const double& a_gamma, const double& b_gamma, 
+				                         double AdpVar_gamma, 
+				                         bool UpdateGamma, unsigned int seed )
+{
+	if(Niter <= 0)
+		throw std::runtime_error("Error in GibbsSampler_DirMulti: Niter must be > 0 ");
+	
+	// Engine
+	sample::GSL_RNG engine(seed);
+	sample::rnorm normal;
+	sample::runif uniform;
+	// Main quantities
+	Rcpp::NumericVector gamma_mcmc(Niter+1, 0.0); gamma_mcmc[0] = gamma0;
+	// Start main loop
+	for(int iter=1; iter <= Niter; iter++ ){
+				//Rcpp::Rcout<<"+++++++++++++++++++++++++++"<<std::endl;
+				//Rcpp::Rcout<<iter<<"/"<<Niter<<std::endl;
+				//Rcpp::Rcout<<"gamma = "<<gamma_mcmc[iter-1]<<std::endl;
+		double ww_g{ std::pow(iter,-0.7) };
+		if(UpdateGamma){
+			// If here, update gamma
+			double log_gamma_old = std::log(gamma_mcmc[iter-1]);
+			double log_gamma_new = normal(engine, log_gamma_old, AdpVar_gamma);
+			double gamma_new = std::exp(log_gamma_new);
+					//Rcpp::Rcout<<"gamma_new = "<<gamma_new<<std::endl;
+			double log_lik_new = log_DirMulti(n, M, n_j, gamma_new);
+			double log_lik_old = log_DirMulti(n, M, n_j, gamma_mcmc[iter-1]);
+			double log_prior_new =  (a_gamma-1.0)*log_gamma_new - b_gamma*gamma_new;
+			double log_prior_old =  (a_gamma-1.0)*log_gamma_old - b_gamma*gamma_mcmc[iter-1];
+					//Rcpp::Rcout<<"log_lik_new = "<<log_lik_new<<std::endl;
+					//Rcpp::Rcout<<"log_lik_old = "<<log_lik_old<<std::endl;
+					//Rcpp::Rcout<<"log_prior_new = "<<log_prior_new<<std::endl;
+					//Rcpp::Rcout<<"log_prior_old = "<<log_prior_old<<std::endl;
+					//Rcpp::Rcout<<"log_gamma_new = "<<log_gamma_new<<std::endl;
+					//Rcpp::Rcout<<"log_gamma_old = "<<log_gamma_old<<std::endl;
+			double log_acc = log_lik_new + log_prior_new - log_lik_old - log_prior_old + log_gamma_new - log_gamma_old;
+					//Rcpp::Rcout<<"P(acc) = "<<std::exp(log_acc)<<std::endl;
+			double u_acc = uniform(engine);
+			if( u_acc  < std::min(1.0, std::exp(log_acc)) ){
+			    gamma_mcmc[iter] = gamma_new;
+			}
+			else{
+				gamma_mcmc[iter] = gamma_mcmc[iter-1];
+			}
+			AdpVar_gamma *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
+					//Rcpp::Rcout<<"AdpVar_gamma = "<<AdpVar_gamma<<std::endl;
+			//if(AdpVar_gamma < 1/std::pow(10, -10)){
+			    //AdpVar_gamma = 1/std::pow(10, -10);
+			//}
+			//if(AdpVar_gamma > std::pow(10,10)){
+			    //AdpVar_gamma = std::pow(10,10);
+			//}
+		}
+		else{
+			gamma_mcmc[iter] = gamma_mcmc[iter-1];
+		}
+				//Rcpp::Rcout<<"---------------------------"<<std::endl;
+	}
+
+	return Rcpp::List::create( Rcpp::Named("gamma_mcmc") = gamma_mcmc );
+}
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 //	Features - Frequentist
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1513,8 +1654,8 @@ double log_efpfBeBeMixPois( const int& n, const int& Kn, const std::vector<int>&
 
 // [[Rcpp::export]]
 double log_ExpMr_BeBeMixNBin( const int& r, const double& a, const double& b, 
-							  const int& n, const int& Kn,
-							  const double& r_nb, const double& p_nb )
+							                const int& n, const int& Kn,
+							                const double& r_nb, const double& p_nb )
 {
 	if(r < 1)
 		throw std::runtime_error("Error in log_ExpMr_BeBeMixNBin: r must be at least one");

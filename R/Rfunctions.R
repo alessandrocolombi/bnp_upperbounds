@@ -1042,3 +1042,37 @@ SimModel_Post_generic = function(model,Kn,Nj,params,Mmax,Nrep,seed = 091079){
     stop("model must be PD or FDP or DirMulti")
   }
 }
+
+
+# ParEst - MCMC -----------------------------------------------------------
+
+
+ParEst_MCMC_generic = function(model,n,Kn,Nj,Niter,init_val,hy_prior,Adp_var,UpdateParam,M=NULL,seed = 31231, M_max = 500)
+{
+  if(model == "FDP"){
+    gamma0 = init_val[1];Lambda0 = init_val[2]
+    a_gamma = hy_prior[1];b_gamma = hy_prior[2];a_Lambda = hy_prior[3];b_Lambda = hy_prior[4];
+    AdpVar_gamma = Adp_var[1]; AdpVar_Lambda = Adp_var[2]
+    UpdateGamma=UpdateParam[1]; UpdateLambda = UpdateParam[2]
+    res = GibbsSampler_FDP(n,Kn,Nj,Niter,gamma0,Lambda0,a_gamma,b_gamma,a_Lambda,b_Lambda,
+                           AdpVar_gamma,AdpVar_Lambda,UpdateGamma,UpdateLambda,M_max,seed)
+    return(res)
+  }
+  if(model == "DirMulti"){
+    if(is.null(M))
+      stop("M must be provided if model is DirMulti")
+    gamma0 = init_val[1]
+    a_gamma = hy_prior[1];b_gamma = hy_prior[2]
+    AdpVar_gamma = Adp_var[1]
+    UpdateGamma=UpdateParam[1]
+    res = GibbsSampler_DirMulti(n,Nj,M,Niter,gamma0,a_gamma,b_gamma,
+                                AdpVar_gamma,UpdateGamma,seed)
+    return(res)
+  }
+  if(model == "PD"){
+    stop("Not yet implemented")
+  }
+  stop("model must either be PD, FDP or DirMulti")
+}
+
+

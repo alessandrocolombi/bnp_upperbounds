@@ -43,8 +43,8 @@ experiments = list("Zipfs" = params_zipfs,
                    "NegBin" = params_negbin)
 
 alpha <- alfa <- 0.05
-M = 200
-Nmin_grid = 100; Nmax_grid = 1000
+M = 1000
+Nmin_grid = 100; Nmax_grid = 2000
 Ngrid = seq(Nmin_grid,Nmax_grid,by = 100); LNgrid = length(Ngrid)
 M_max = 200
 
@@ -60,7 +60,7 @@ img_fld = paste0("img/Species_")
 
 save_cov = TRUE
 
-ii = 1
+ii = 4
 for(ii in 1:length(experiments)){
   
   name = names(experiments)[ii]
@@ -74,7 +74,7 @@ for(ii in 1:length(experiments)){
       trim_params = paste0(trim_params[1],"_",trim_params[2])
     
     # Load
-    filename = paste0(save_name_base,name,"_Mfix_",trim_params,".Rdat")
+    filename = paste0(save_name_base,name,"_M",M,"fix_",trim_params,".Rdat")
     load(filename)
     
     # Coverage
@@ -97,7 +97,7 @@ for(ii in 1:length(experiments)){
 
 
 # Coverage - Table paper --------------------------------------------------
-Tables = vector("list",11); counter = 1
+Tables = vector("list",5); counter = 1
 # Zipfs and Geometric
 ii = 2
 for(ii in 1:2){

@@ -118,9 +118,6 @@ if(save_img)
 
 
 # Mmax with M -------------------------------------------------------------
-
-
-
 pos = 1:LMgrid
 xpos = pos; xlabs = Mgrid
 ymax = max(sapply(ExpRes_list,function(x) max(x[,1])));ymin = min(sapply(ExpRes_list,function(x) min(x[,1])))
@@ -148,7 +145,7 @@ if(save_img)
   dev.off()
 
 
-# Estimates ---------------------------------------------------------------
+# Estimates - EB ---------------------------------------------------------------
 Mmin_grid = 50; Mmax_grid = 1000
 Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
 Nexp = length(Mgrid)
@@ -209,6 +206,75 @@ gammas_DM = lapply(ParEst_list, function(ParEst) ParEst[,5])
 
 pos = 1:LMgrid
 xpos = pos; xlabs = Mgrid
+ymax = 1000;ymin = 0
+ylim_plot = c(ymin,ymax)
+ypos = seq(ymin,ymax,length.out = 5); ylabs = round(ypos,2)
+ylab = "Gamma (DirMulti)"
+
+img_name = paste0("img/",name,"_",trim_params,"_Mmax",".pdf")
+if(save_img)
+  pdf(img_name, width = width+6, height = height)
+par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+plot(0,0,type = "n",xlim = c(0,(LMgrid+1)), ylim = ylim_plot,
+     xlab = "r", ylab = ylab, 
+     xaxt = "n", yaxt = "n",
+     main = "",
+     cex.lab = cex.lab, cex.axis = cex.axis)
+axis(side = 2, at = ypos, labels = ylabs, las = 1, cex.axis = cex.axis)
+axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+grid(lty = 1,lwd = 1, col = "gray90" )
+for(ii in 1:(LMgrid)){
+  boxplot(gammas_DM[[ii]], at = pos[ii], add = T, 
+          col = "grey90", pch = 16, yaxt = "n", cex = 0.5)
+}
+if(save_img)
+  dev.off()
+
+
+# Estimates - MCMC ---------------------------------------------------------------
+Mmin_grid = 50; Mmax_grid = 500
+Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
+Nexp = length(Mgrid)
+Nrep = 10
+ParEst_list = vector("list",LMgrid)
+for(ii in 1:LMgrid){
+  cat("\n",ii,"/",LMgrid,"\n")
+  M = Mgrid[ii]
+  ptrue = sim_generic_species(name,M,params)
+  ptrue = sort(ptrue, decreasing = TRUE)
+  ptrue_mat = matrix(nrow = Nrep,ncol = M)
+  ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
+  
+  data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+  ParEst = t(apply(data_mat, 2, function(data){
+    n_i = tabulate(data, nbins = M)
+    idx_obs = which(n_i > 0)
+    Kn = length(idx_obs)
+    data_obs = n_i[idx_obs]
+    
+    res = matrix(nrow = 1, ncol = 5)
+    colnames(res) = c("sigma-PD","theta-PD","Lambda-FDP","gamma-FDP","gamma-DirMulti")
+    
+    model = "DirMulti"
+    Niter = 10000
+    init_val = c(1)
+    hy_prior = c(1,1) 
+    Adp_var = c(0.1)
+    UpdateParam = c(TRUE)
+    fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=n_i,Niter=Niter,
+                              init_val=init_val,hy_prior=hy_prior,Adp_var=Adp_var,UpdateParam=UpdateParam,
+                              M=M,seed = seed, M_max = 500)
+    gammas = fit$gamma_mcmc
+    res[1,5] = mean(gammas[(Niter/2):Niter])    
+    res
+  })) # Nrep x 3 matrix
+  ParEst_list[[ii]] = ParEst
+}
+
+gammas_DM = lapply(ParEst_list, function(ParEst) ParEst[,5])
+
+pos = 1:LMgrid
+xpos = pos; xlabs = Mgrid
 ymax = 10;ymin = 0
 ylim_plot = c(ymin,ymax)
 ypos = seq(ymin,ymax,length.out = 5); ylabs = round(ypos,2)
@@ -232,3 +298,55 @@ for(ii in 1:(LMgrid)){
 }
 if(save_img)
   dev.off()
+
+
+Rmax = 100
+alpha = 0.05
+Mmin_grid = 50; Mmax_grid = 1000
+Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
+Nexp = length(Mgrid)
+Nrep = 100
+ParEst_list = vector("list",LMgrid)
+for(ii in 1:LMgrid){
+  cat("\n",ii,"/",LMgrid,"\n")
+  M = Mgrid[ii]
+  ptrue = sim_generic_species(name,M,params)
+  ptrue = sort(ptrue, decreasing = TRUE)
+  ptrue_mat = matrix(nrow = Nrep,ncol = M)
+  ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
+  
+  data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+  UBres = t(apply(data_mat, 2, function(data){
+    n_i = tabulate(data, nbins = M)
+    idx_obs = which(n_i > 0)
+    Kn = length(idx_obs)
+    data_obs = n_i[idx_obs]
+    
+    res = matrix(nrow = 1, ncol = 5)
+    colnames(res) = c("sigma-PD","theta-PD","Lambda-FDP","gamma-FDP","gamma-DirMulti")
+    
+    model = "DirMulti"
+    Niter = 10000
+    init_val = c(1)
+    hy_prior = c(1,1) 
+    Adp_var = c(0.1)
+    UpdateParam = c(TRUE)
+    fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=n_i,Niter=Niter,
+                              init_val=init_val,hy_prior=hy_prior,Adp_var=Adp_var,UpdateParam=UpdateParam,
+                              M=M,seed = seed, M_max = 500)
+    gammas = fit$gamma_mcmc
+    gamma = mean(gammas[(Niter/2):Niter])
+    y = exp(compute_log_UB_DirMulti( Rmax, gamma, M, Kn, n, alpha ))
+    y = min(y,1); y
+    res[1,5] = y
+  })) # Nrep x 3 matrix
+  ParEst_list[[ii]] = ParEst
+}
+
+
+
+
+
+
+
+
