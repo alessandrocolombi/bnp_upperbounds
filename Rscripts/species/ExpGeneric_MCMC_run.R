@@ -56,6 +56,7 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params,
   pain = min(pain,1)
 
   # Upper bound (DirMulti)
+  model = "DirMulti"
   Niter = 10000
   init_val = c(1)
   hy_prior = c(1,1) 
