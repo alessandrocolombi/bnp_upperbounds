@@ -27,5 +27,3 @@ echo "Started: $SCRIPT"                   # info
 echo "PID: $pid  (saved in $pidfile)"     # info
 echo "Log: $log"                          # info
 
-# Follow the log; Ctrl+C stops only this tail, not the R job
-tail -n "$TAIL_LINES" -f "$log"           # live output

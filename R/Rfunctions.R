@@ -1070,7 +1070,13 @@ ParEst_MCMC_generic = function(model,n,Kn,Nj,Niter,init_val,hy_prior,Adp_var,Upd
     return(res)
   }
   if(model == "PD"){
-    stop("Not yet implemented")
+    sigma0 = init_val[1];theta0 = init_val[2]
+    a_sigma = hy_prior[1];b_sigma = hy_prior[2];a_theta = hy_prior[3];b_theta = hy_prior[4];
+    AdpVar_sigma = Adp_var[1]; AdpVar_theta = Adp_var[2]
+    UpdateSigma=UpdateParam[1]; UpdateTheta = UpdateParam[2]
+    res = GibbsSampler_PYP(n,Kn,Nj,Niter,sigma0,theta0,a_sigma,b_sigma,a_theta,b_theta,
+                           AdpVar_sigma,AdpVar_theta,UpdateSigma,UpdateTheta,seed)
+    return(res)
   }
   stop("model must either be PD, FDP or DirMulti")
 }

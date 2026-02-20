@@ -622,9 +622,24 @@ NumericVector logUB_Painsky( const int& Nexp, const int& Rmax, const IntegerVect
 //	Param. Est. - PYP
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 
+double logit(double x){
+	return std::log(x) - std::log(1.0-x);
+}
+double invlogit(double x){
+	double z{0.0};
+  if(x >= 0.0){
+    z = std::exp(-x);
+    return 1.0 / (1.0 + z);
+  }
+  else{
+  	z = std::exp(x);
+  }
+  return z / (1.0 + z);
+}
+
 // [[Rcpp::export]]
 double log_eppfPYP( const int& n, const int& Kn, const std::vector<int>& n_j, 
-					const double& alpha, const double& theta )
+					          const double& alpha, const double& theta )
 {
 	double inf = std::numeric_limits<double>::infinity();
 
@@ -654,50 +669,124 @@ double log_eppfPYP( const int& n, const int& Kn, const std::vector<int>& n_j,
 		Rcpp::Rcout<<"Caso proibito (alpha < 0 or alpha > 1)"<<std::endl;
 		return -std::exp(20);
 	}
-	if(alpha < 1e-16 ){
-		// Dirichlet process case:
-		double res{ (double)Kn*std::log(theta) }; // alpha^Kn
-		res -= log_raising_factorial(n, theta); // 1 / (theta)_n
-		for(std::size_t j = 0; j < n_j.size(); j++){
-			res += lgamma(n_j[j]); // (n_j[j]-1)!
+
+	double logA{0.0};double logB{0.0};double logC{0.0};
+
+	// A) compute logA = \prod_{i=1}^{Kn-1} (\theta + i\sigma)
+	if(Kn > 1){
+		if(alpha<1e-10){
+			// Dirichlet process case
+			logA += double(Kn-1)*std::log(theta);
 		}
-		if( res == inf || std::isnan(res) || res == -inf){
-			Rcpp::Rcout<<"Error in log_eppfPYP: NaN, Inf or -Inf returned "<<std::endl;
-			Rcpp::Rcout<<"res = "<<res<<std::endl;
-			Rcpp::Rcout<<"alpha = "<<alpha<<std::endl;
-			Rcpp::Rcout<<"theta = "<<theta<<std::endl;
-			Rcpp::Rcout<<"n = "<<n<<std::endl;
-			Rcpp::Rcout<<"Kn = "<<Kn<<std::endl;
-			Rcpp::Rcout<<"Stampo n_j: ";		
-			for(auto __v : n_j)
-				Rcpp::Rcout<<__v<<", ";
-			Rcpp::Rcout<<std::endl;
-			throw std::runtime_error("Error ");
+		else{
+			// Poisson-Dirichlet process case
+			logA += double(Kn-1)*std::log(alpha) + std::lgamma(theta/alpha +(double)Kn ) - std::lgamma(theta/alpha + 1.0 );
 		}
-		return res;
 	}
-	// Poisson-Dirichlet eppf
-	double res{ (double)Kn*std::log(alpha) }; // alpha^Kn
-	res += log_raising_factorial(Kn, theta/alpha) - log_raising_factorial(n, theta); // (theta/alpha)_Kn / (theta)_n
+
+	// B) compute logB = 1/(\theta+1)_{n-1}
+	logB += std::lgamma(theta+1.0) - std::lgamma(theta + (double)n);
+
+	// C) compute logC = \sum_{j=1}^{Kn} (1-\sigma)_{n_j-1}
+	logC -= double(Kn)*std::lgamma(1.0-alpha);
 	for(std::size_t j = 0; j < n_j.size(); j++){
-		res += log_raising_factorial(n_j[j] - 1, 1.0 - alpha); // (1-alpha)_(n_j[j]-1)
+		logC += std::lgamma(n_j[j] - alpha); 
 	}
-	if( res == inf || std::isnan(res) || res == -inf){
-		Rcpp::Rcout<<"Error in log_eppfPYP: NaN, Inf or -Inf returned "<<std::endl;
-		Rcpp::Rcout<<"res = "<<res<<std::endl;
-		Rcpp::Rcout<<"alpha = "<<alpha<<std::endl;
-		Rcpp::Rcout<<"theta = "<<theta<<std::endl;
-		Rcpp::Rcout<<"n = "<<n<<std::endl;
-		Rcpp::Rcout<<"Kn = "<<Kn<<std::endl;
-		Rcpp::Rcout<<"Stampo n_j: ";		
-		for(auto __v : n_j)
-			Rcpp::Rcout<<__v<<", ";
-		Rcpp::Rcout<<std::endl;
-		throw std::runtime_error("Error ");
-	}
-	return res;
+
+			//Rcpp::Rcout<<"logA = "<<logA<<std::endl;
+			//Rcpp::Rcout<<"logB = "<<logB<<std::endl;
+			//Rcpp::Rcout<<"logC = "<<logC<<std::endl;
+	return logA + logB + logC;
 }
 
+// [[Rcpp::export]]
+Rcpp::List GibbsSampler_PYP(const int& n, const int& Kn, const std::vector<int>& n_j, 
+														const int& Niter,
+				                    const double& sigma0, const double& theta0, 
+				                    const double& a_sigma, const double& b_sigma, 
+				                    const double& a_theta, const double& b_theta, 
+				                    double AdpVar_sigma, double AdpVar_theta, 
+				                    bool UpdateSigma, bool UpdateTheta,
+				                    unsigned int seed )
+{
+	if(Niter <= 0)
+		throw std::runtime_error("Error in GibbsSampler_PYP: Niter must be > 0 ");
+	// Engine
+	sample::GSL_RNG engine(seed);
+	sample::rnorm normal;
+	sample::runif uniform;
+	// Main quantities
+	Rcpp::NumericVector sigma_mcmc(Niter+1, 0.0); sigma_mcmc[0] = sigma0;
+	Rcpp::NumericVector theta_mcmc(Niter+1, 0.0); theta_mcmc[0] = theta0;
+	// Start main loop
+	for(int iter=1; iter <= Niter; iter++ ){
+				//Rcpp::Rcout<<"+++++++++++++++++++++++++++"<<std::endl;
+				//Rcpp::Rcout<<iter<<"/"<<Niter<<std::endl;
+				//Rcpp::Rcout<<"sigma = "<<sigma_mcmc[iter-1]<<std::endl;
+				//Rcpp::Rcout<<"theta = "<<theta_mcmc[iter-1]<<std::endl;
+				//Rcpp::Rcout<<"AdpVar_sigma = "<<AdpVar_sigma<<std::endl;
+		double ww_g{ std::pow(iter,-0.7) };
+		if(UpdateSigma){
+			// If here, update sigma
+			double logit_sigma_old = logit(sigma_mcmc[iter-1]);
+					//Rcpp::Rcout<<"logit_sigma_old = "<<logit_sigma_old<<std::endl;
+			double qstep = normal(engine, 0.0, std::sqrt(AdpVar_sigma));
+			double logit_sigma_new = logit_sigma_old + qstep;
+				  //Rcpp::Rcout<<"logit_sigma_new = "<<logit_sigma_new<<std::endl;
+			double sigma_new = invlogit(logit_sigma_new);
+				  //Rcpp::Rcout<<"sigma_new = "<<sigma_new<<std::endl;
+			double log_lik_new = log_eppfPYP(n, Kn, n_j, sigma_new, theta_mcmc[iter-1] );
+			double log_lik_old = log_eppfPYP(n, Kn, n_j, sigma_mcmc[iter-1], theta_mcmc[iter-1] );
+			double log_prior_new =  (a_sigma-1.0)*std::log(sigma_new) + (b_sigma-1.0)*std::log(1.0 - sigma_new);
+			double log_prior_old =  (a_sigma-1.0)*std::log(sigma_mcmc[iter-1]) + (b_sigma-1.0)*std::log(1.0 - sigma_mcmc[iter-1]);
+					//Rcpp::Rcout<<"Delta log_lik = "<<log_lik_new-log_lik_old<<std::endl;
+			double log_acc = log_lik_new + log_prior_new - log_lik_old - log_prior_old + 
+											 std::log(sigma_new) - std::log(sigma_mcmc[iter-1]) + // jacobian, part 1
+											 std::log(1.0-sigma_new) - std::log(1.0-sigma_mcmc[iter-1]); // jacobian, part 2
+					//Rcpp::Rcout<<"P(acc) = "<<std::exp(log_acc)<<std::endl;
+			double u_acc = uniform(engine);
+			if( u_acc  < std::min(1.0, std::exp(log_acc)) ){
+			    sigma_mcmc[iter] = sigma_new;
+			}
+			else{
+				sigma_mcmc[iter] = sigma_mcmc[iter-1];
+			}
+			if(iter < Niter/2 )
+				AdpVar_sigma *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
+		}
+		else{
+			sigma_mcmc[iter] = sigma_mcmc[iter-1];
+		}
+
+		if(UpdateTheta){
+			// If here, update theta
+			double log_theta_old = std::log(theta_mcmc[iter-1]);
+			double log_theta_new = normal(engine, log_theta_old, std::sqrt(AdpVar_theta));
+			double theta_new = std::exp(log_theta_new);
+			double log_lik_new = log_eppfPYP(n, Kn, n_j, sigma_mcmc[iter], theta_new );
+			double log_lik_old = log_eppfPYP(n, Kn, n_j, sigma_mcmc[iter], theta_mcmc[iter-1] );
+			double log_prior_new =  (a_theta-1.0)*log_theta_new - b_theta*theta_new;
+			double log_prior_old =  (a_theta-1.0)*log_theta_old - b_theta*theta_mcmc[iter-1];
+			double log_acc = log_lik_new + log_prior_new - log_lik_old - log_prior_old + log_theta_new - log_theta_old;
+			
+			double u_acc = uniform(engine);
+			if( u_acc  < std::min(1.0, std::exp(log_acc)) ){
+			    theta_mcmc[iter] = theta_new;
+			}
+			else{
+				theta_mcmc[iter] = theta_mcmc[iter-1];
+			}
+			if(iter < Niter/2 )
+				AdpVar_theta *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
+		}
+		else{
+			theta_mcmc[iter] = theta_mcmc[iter-1];
+		}
+				//Rcpp::Rcout<<"---------------------------"<<std::endl;
+	}
+
+	return Rcpp::List::create( Rcpp::Named("sigma_mcmc") = sigma_mcmc, Rcpp::Named("theta_mcmc") = theta_mcmc );
+}
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 //	Finite species model - FDP
 //------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1052,7 +1141,7 @@ Rcpp::List GibbsSampler_FDP(const int& n, const int& Kn, const std::vector<int>&
 		if(UpdateGamma){
 			// If here, update gamma
 			double log_gamma_old = std::log(gamma_mcmc[iter-1]);
-			double log_gamma_new = normal(engine, log_gamma_old, AdpVar_gamma);
+			double log_gamma_new = normal(engine, log_gamma_old, std::sqrt(AdpVar_gamma));
 			double gamma_new = std::exp(log_gamma_new);
 			double log_lik_new = log_eppfFD(n, Kn, n_j, gamma_new, Lambda_mcmc[iter-1], M_max );
 			double log_lik_old = log_eppfFD(n, Kn, n_j, gamma_mcmc[iter-1], Lambda_mcmc[iter-1], M_max );
@@ -1067,7 +1156,8 @@ Rcpp::List GibbsSampler_FDP(const int& n, const int& Kn, const std::vector<int>&
 			else{
 				gamma_mcmc[iter] = gamma_mcmc[iter-1];
 			}
-			AdpVar_gamma *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
+			if(iter < Niter/2 )
+				AdpVar_gamma *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
 		}
 		else{
 			gamma_mcmc[iter] = gamma_mcmc[iter-1];
@@ -1077,7 +1167,7 @@ Rcpp::List GibbsSampler_FDP(const int& n, const int& Kn, const std::vector<int>&
 		if(UpdateLambda){
 			// If here, update Lambda
 			double log_Lambda_old = std::log(Lambda_mcmc[iter-1]);
-			double log_Lambda_new = normal(engine, log_Lambda_old, AdpVar_Lambda);
+			double log_Lambda_new = normal(engine, log_Lambda_old, std::sqrt(AdpVar_Lambda));
 			double Lambda_new = std::exp(log_Lambda_new);
 			double log_lik_new = log_eppfFD(n, Kn, n_j, gamma_mcmc[iter], Lambda_new, M_max );
 			double log_lik_old = log_eppfFD(n, Kn, n_j, gamma_mcmc[iter], Lambda_mcmc[iter-1], M_max );
@@ -1242,7 +1332,7 @@ Rcpp::List GibbsSampler_DirMulti(const int& n, const std::vector<int>& n_j, cons
 		if(UpdateGamma){
 			// If here, update gamma
 			double log_gamma_old = std::log(gamma_mcmc[iter-1]);
-			double log_gamma_new = normal(engine, log_gamma_old, AdpVar_gamma);
+			double log_gamma_new = normal(engine, log_gamma_old, std::sqrt(AdpVar_gamma));
 			double gamma_new = std::exp(log_gamma_new);
 					//Rcpp::Rcout<<"gamma_new = "<<gamma_new<<std::endl;
 			double log_lik_new = log_DirMulti(n, M, n_j, gamma_new);
@@ -1264,7 +1354,8 @@ Rcpp::List GibbsSampler_DirMulti(const int& n, const std::vector<int>& n_j, cons
 			else{
 				gamma_mcmc[iter] = gamma_mcmc[iter-1];
 			}
-			AdpVar_gamma *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
+			if(iter < Niter/2 )
+				AdpVar_gamma *=  std::exp(  ww_g *( std::exp(std::min(0.0, log_acc)) - 0.44 )  );
 					//Rcpp::Rcout<<"AdpVar_gamma = "<<AdpVar_gamma<<std::endl;
 			//if(AdpVar_gamma < 1/std::pow(10, -10)){
 			    //AdpVar_gamma = 1/std::pow(10, -10);

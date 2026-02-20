@@ -36,7 +36,10 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   ptrue = sim_generic_species(name,M,params)
   ptrue = sort(ptrue, decreasing = TRUE)
   # Define return object
-  res_names = c("Mmax","Freq","PD","FDP","DirMulti")
+  res_names = c("Mmax","Freq","PD","FDP","DirMulti",
+                "sigma","theta",
+                "gamma_FDP","Lambda_FDP",
+                "gamma_DM")
   res = matrix(NA,nrow = 1, ncol = length(res_names))
   colnames(res) = res_names
   #a) Generate data
@@ -57,12 +60,34 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   
   ### Prior definition - MCMC params
   Niter = 10000
+  a_sigma = 1
+  b_sigma = 1
+  mu_theta = Kn
+  a_theta = mu_theta*mu_theta/var_prior
+  b_theta = mu_theta/var_prior
   mu_gamma = 1
   a_gamma = mu_gamma*mu_gamma/var_prior
   b_gamma = mu_gamma/var_prior
   mu_Lambda = Kn
   a_Lambda = mu_Lambda*mu_Lambda/var_prior
   b_Lambda = mu_Lambda/var_prior
+  #c) Upper bound (PD)
+  model = "PD"
+  init_val = c(0.5,Kn)
+  hy_prior = c(a_sigma,b_sigma,a_sigma,b_sigma) 
+  Adp_var = c(0.1,0.1)
+  UpdateParam = c(TRUE,TRUE)
+  fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=data_obs,Niter=Niter,
+                            init_val=init_val,hy_prior=hy_prior,Adp_var=Adp_var,UpdateParam=UpdateParam,
+                            M=M,seed = seed, M_max = 500)
+  sigmas = fit$sigma_mcmc
+  thetas = fit$theta_mcmc
+  sigma  = mean(sigmas[(Niter/2):Niter])
+  theta = mean(thetas[(Niter/2):Niter])
+  ubpyp = exp(compute_log_UBMarkov( Rmax, sigma, theta, Kn, n, alpha ))
+  ubpyp = min(ubpyp,1)
+  res[1,6] = sigma
+  res[1,7] = theta
   #c) Upper bound (FDP)
   model = "FDP"
   init_val = c(1,Kn)
@@ -76,6 +101,8 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   Lambdas = fit$Lambda_mcmc
   gamma = mean(gammas[(Niter/2):Niter])
   Lambda = mean(Lambdas[(Niter/2):Niter])
+  res[1,8] = gamma
+  res[1,9] = Lambda
   ubFDP = exp(compute_log_UBMarkov_FD( Rmax, gamma, Lambda, Kn, n, alpha, M_max ))
   ubFDP = min(ubFDP,1)
   #d) Upper bound (DirMulti)
@@ -89,12 +116,13 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
                             M=M,seed = seed, M_max = 500)
   gammas = fit$gamma_mcmc
   gamma = mean(gammas[(Niter/2):Niter])
+  res[1,10] = gamma
   ubDM = exp(compute_log_UB_DirMulti( Rmax, gamma, M, Kn, n, alpha ))
   ubDM = min(ubDM,1)
   #f) Save results
   res[1,1] = Mmax
   res[1,2] = pain
-  res[1,3] = 0
+  res[1,3] = ubpyp
   res[1,4] = ubFDP
   res[1,5] = ubDM
   # Return
