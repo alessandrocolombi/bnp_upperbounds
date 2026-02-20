@@ -23,7 +23,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Custom functions --------------------------------------------------------
 seed = 121321
 M = 100
-ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params,
+ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
                                            alpha = 0.05,Rmax = 100, M_max = 200, M_DM = NULL, seed = 121321)
 {
   source("../../R/Rfunctions.R")
@@ -54,10 +54,32 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params,
   #b) Freq
   pain = ub_pain(n = n, Rmax = Rmax, alfa = alpha)
   pain = min(pain,1)
-
-  # Upper bound (DirMulti)
-  model = "DirMulti"
+  
+  ### Prior definition - MCMC params
   Niter = 10000
+  mu_gamma = 1
+  a_gamma = mu_gamma*mu_gamma/var_prior
+  b_gamma = mu_gamma/var_prior
+  mu_Lambda = Kn
+  a_Lambda = mu_Lambda*mu_Lambda/var_prior
+  b_Lambda = mu_Lambda/var_prior
+  #c) Upper bound (FDP)
+  model = "FDP"
+  init_val = c(1,Kn)
+  hy_prior = c(a_gamma,b_gamma,a_Lambda,b_Lambda) 
+  Adp_var = c(0.1,0.1)
+  UpdateParam = c(TRUE,TRUE)
+  fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=n_i,Niter=Niter,
+                            init_val=init_val,hy_prior=hy_prior,Adp_var=Adp_var,UpdateParam=UpdateParam,
+                            M=M,seed = seed, M_max = 500)
+  gammas = fit$gamma_mcmc
+  Lambdas = fit$Lambda_mcmc
+  gamma = mean(gammas[(Niter/2):Niter])
+  Lambda = mean(Lambdas[(Niter/2):Niter])
+  ubFDP = exp(compute_log_UBMarkov_FD( Rmax, gamma, Lambda, Kn, n, alpha, M_max ))
+  ubFDP = min(ubFDP,1)
+  #d) Upper bound (DirMulti)
+  model = "DirMulti"
   init_val = c(1)
   hy_prior = c(1,1) 
   Adp_var = c(0.1)
@@ -72,6 +94,8 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params,
   #f) Save results
   res[1,1] = Mmax
   res[1,2] = pain
+  res[1,3] = 0
+  res[1,4] = ubFDP
   res[1,5] = ubDM
   # Return
   res
@@ -80,10 +104,10 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params,
 ExpGeneric_speciesMCMC_nfix = function(name,M,n,params,Nrep = 100, 
                                        alpha = 0.05,Rmax = 100, 
                                        M_max = 200, seed0 = 121321,
-                                       M_DM = NULL,
+                                       M_DM = NULL, var_prior = 1,
                                        parallel = TRUE, num_cores = 5)
 {
-  cat("\n M = ",M,"\n")
+  cat("\n M = ",M," || var_prior = ",var_prior,"\n")
   set.seed(seed0)
   seeds = sample(1:999999, size = Nrep)
   
@@ -91,7 +115,7 @@ ExpGeneric_speciesMCMC_nfix = function(name,M,n,params,Nrep = 100,
   if(!parallel){
     res_list = lapply(seeds, function(seed) ExpGeneric_speciesMCMC_nfix_run(
       M=M, n=n, params=params, 
-      alpha=alpha, 
+      alpha=alpha, var_prior=var_prior,
       Rmax=Rmax, M_max=M_max,
       M_DM=M_DM,
       seed=seed, name=name) )
@@ -103,7 +127,7 @@ ExpGeneric_speciesMCMC_nfix = function(name,M,n,params,Nrep = 100,
     res_list = parLapply( cl = cluster, x = seeds,
                           fun = ExpGeneric_speciesMCMC_nfix_run,
                           M=M, n=n, alpha=alpha, name=name, params=params, 
-                          M_DM=M_DM,
+                          M_DM=M_DM, var_prior=var_prior,
                           Rmax=Rmax, M_max=M_max )
     stopCluster(cluster)
   }
@@ -134,7 +158,7 @@ experiments = list("Zipfs" = params_zipfs,
 
 alpha <- alfa <- 0.05
 num_cores = 25 # <---
-Nrep = 5000 # <---
+Nrep = 500 # <---
 n = 500
 Rmax = 100; RmaxFD = 50
 Mmin_grid = 50; Mmax_grid = 1000
@@ -150,8 +174,7 @@ save_exp = TRUE # <---
 save_name_base = paste0("save/Species_MCMC") 
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------
-
-igrid = c(1:4)
+igrid = c(4)
 ii = 1
 for(ii in igrid){
   
@@ -171,11 +194,10 @@ for(ii in igrid){
                           function(x){
                             ExpGeneric_speciesMCMC_nfix(
                               name=name, params=params, M=x$M, n=n,
-                              Nrep=Nrep, alpha=alpha, Rmax=Rmax,
-                              M_DM=NULL,
-                              parallel = TRUE,
-                              M_max=M_max,seed0=x$seed)}  )
-    filename = paste0(save_name_base,name,"_nfix_",trim_params,".Rdat")
+                              var_prior=var_prior,Nrep=Nrep, 
+                              alpha=alpha, Rmax=Rmax, M_DM=NULL,
+                              parallel = TRUE,M_max=M_max,seed0=x$seed)}  )
+    filename = paste0(save_name_base,name,"_v_",var_prior,"_nfix_",trim_params,".Rdat")
     if(save_exp)
       save(ExpRes_list,file = filename)
   }

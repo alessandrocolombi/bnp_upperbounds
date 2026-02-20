@@ -300,13 +300,16 @@ if(save_img)
   dev.off()
 
 
+# UB MCMC -----------------------------------------------------------------
+
+
 Rmax = 100
 alpha = 0.05
-Mmin_grid = 50; Mmax_grid = 1000
+Mmin_grid = 50; Mmax_grid = 300
 Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
 Nexp = length(Mgrid)
 Nrep = 100
-ParEst_list = vector("list",LMgrid)
+UB_list = vector("list",LMgrid)
 for(ii in 1:LMgrid){
   cat("\n",ii,"/",LMgrid,"\n")
   M = Mgrid[ii]
@@ -339,14 +342,48 @@ for(ii in 1:LMgrid){
     y = exp(compute_log_UB_DirMulti( Rmax, gamma, M, Kn, n, alpha ))
     y = min(y,1); y
     res[1,5] = y
+    res
   })) # Nrep x 3 matrix
-  ParEst_list[[ii]] = ParEst
+  UB_list[[ii]] = UBres
 }
 
+ub_DM_all = lapply(UB_list, function(UBres) UBres[,5])
+oracle = sapply(ExpRes_list, function(x) quantile(x[,1], 1-alpha))
 
 
+pos = 1:LMgrid
+xpos = pos; xlabs = Mgrid
+ymax = 14*1e-3;ymin = 0
+ylim_plot = c(ymin,ymax)
+ypos = seq(ymin,ymax,length.out = 5); ylabs = round(ypos*1e3,0)
+ylab = "UB (DirMulti)"
+
+img_name = paste0("img/",name,"_",trim_params,"_UBMCMC",".pdf")
+if(save_img)
+  pdf(img_name, width = width+6, height = height)
+par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+plot(0,0,type = "n",xlim = c(0,(LMgrid+1)), ylim = ylim_plot,
+     xlab = "r", ylab = ylab, 
+     xaxt = "n", yaxt = "n",
+     main = "",
+     cex.lab = cex.lab, cex.axis = cex.axis)
+axis(side = 2, at = ypos, labels = ylabs, las = 1, cex.axis = cex.axis)
+axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+grid(lty = 1,lwd = 1, col = "gray90" )
+points( x = pos, y = oracle[1:LMgrid], 
+        type = "l", lwd = 5, col = "black" )
+for(ii in 1:(LMgrid)){
+  boxplot(ub_DM_all[[ii]], at = pos[ii], add = T, 
+          col = "grey90", pch = 16, yaxt = "n", cex = 0.5)
+}
+if(save_img)
+  dev.off()
 
 
+sapply(1:LMgrid, function(ii){
+  length(which(ub_DM_all[[ii]] < oracle[ii]))/length(ub_DM_all[[ii]])
+})
 
-
-
+ii = 2
+dens_ub = density(ub_DM_all[[ii]])
+plot(dens_ub$x,dens_ub$y, xlab = "", ylab = "")
