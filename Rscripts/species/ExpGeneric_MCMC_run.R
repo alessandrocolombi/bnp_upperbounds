@@ -69,7 +69,7 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   hy_prior = c(a_gamma,b_gamma,a_Lambda,b_Lambda) 
   Adp_var = c(0.1,0.1)
   UpdateParam = c(TRUE,TRUE)
-  fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=n_i,Niter=Niter,
+  fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=data_obs,Niter=Niter,
                             init_val=init_val,hy_prior=hy_prior,Adp_var=Adp_var,UpdateParam=UpdateParam,
                             M=M,seed = seed, M_max = 500)
   gammas = fit$gamma_mcmc
