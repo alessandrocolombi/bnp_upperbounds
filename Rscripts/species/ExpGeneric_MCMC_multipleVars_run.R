@@ -21,7 +21,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 
 
-variance_prior_vec = c(1,10,100,1000,10000)
+variance_prior_vec = c(1,10,100,1000)
 for(var_prior in variance_prior_vec){
   source("./ExpGeneric_MCMC_run.R")
 }
