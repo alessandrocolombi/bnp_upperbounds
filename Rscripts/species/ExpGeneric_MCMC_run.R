@@ -74,7 +74,7 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   #c) Upper bound (PD)
   model = "PD"
   init_val = c(0.5,Kn)
-  hy_prior = c(a_sigma,b_sigma,a_sigma,b_sigma) 
+  hy_prior = c(a_sigma,b_sigma,a_theta,b_theta) 
   Adp_var = c(0.1,0.1)
   UpdateParam = c(TRUE,TRUE)
   fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=data_obs,Niter=Niter,
@@ -108,7 +108,7 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   #d) Upper bound (DirMulti)
   model = "DirMulti"
   init_val = c(1)
-  hy_prior = c(1,1) 
+  hy_prior = c(a_gamma,b_gamma) 
   Adp_var = c(0.1)
   UpdateParam = c(TRUE)
   fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=n_i,Niter=Niter,
