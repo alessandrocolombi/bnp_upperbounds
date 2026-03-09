@@ -186,6 +186,67 @@ rownames(PostEst_gammaDM) = Mgrid[seq(2,LMgrid,by = 2)]
 colnames(PostEst_gammaDM) = variance_prior_vec
 PostEst_gammaDM
 
+
+# ParEst - Specific quantity ----------------------------------------------
+
+variable = c("sigma","theta","gamma_FDP","Lambda_FDP","gamma_DM")
+vv = 5
+for(ii in igrid){
+  name = names(experiments)[ii]
+  Ncases = length(experiments[[ii]])
+  jj = 1
+  for(jj in 1:Ncases){
+    cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
+    params = experiments[[ii]][[jj]]
+    trim_params = sapply(params, get_first3digits, 4)
+    if(length(trim_params)>1)
+      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    
+    # Loop for the different variables of interest
+    for(vv in seq_along(variable)){
+      xx_list_mat = vector("list", length(variance_prior_vec))
+      for(hh in seq_along(variance_prior_vec)){
+        var_prior = variance_prior_vec[hh]
+        filename = paste0(save_name_base,name,"_v_",var_prior,"_nfix_",trim_params,".Rdat")
+        load(filename)
+        xx_list = lapply(ExpRes_list, function(x) x[,vv+5])
+        xx_list_mat[[hh]] = do.call(cbind, xx_list) # Nrep x LMgrid
+      }
+      ## axis labels
+      ymax = (11/10) * max(sapply(xx_list_mat, quantile, 0.975)); ymin = (10/11) * min(sapply(xx_list_mat, quantile, 0.025))
+      ylim_plot = c(ymin,ymax)
+      ypos = seq(ymin,ymax,length.out = 5)
+      ylabs = as.character(round(ypos,1))
+      xmax = LMgrid+1; xmin = 0
+      xlim_plot = c(0,xmax)
+      xpos = 1:LMgrid
+      xlabs = as.character(Mgrid)
+      
+      
+      img_name = paste0(img_fld,name,"_MCMC_II","_vars","_nfix_",trim_params,"_",variable[vv],".pdf")
+      if(save_img)
+        pdf(img_name, width = width, height = height)
+      par( mfrow = c(1,1), mar = c(3.5,6,1,1), mgp=c(4.5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+      plot(0,0,  yaxt = "n", xaxt = "n",
+           xlab = "", ylab = paste0(variable[vv]),
+           xlim = xlim_plot , ylim = ylim_plot, 
+           main = paste0(" "),
+           type = "n")
+      grid(lty = 1,lwd = 1, col = "gray90" )
+      axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
+      axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
+      mtext("M", side = 1, line = 2.5, cex = cex.axis)
+      for(hh in 1:length(variable)){
+        for(ii in 1:(LMgrid)){
+          boxplot(xx_list_mat[[hh]][,ii], at = xpos[ii], add = T, 
+                  col = hh, pch = 16, yaxt = "n", cex = 0.5)
+        }
+      }
+      if(save_img)
+        dev.off()
+    }
+  }
+}
 # CI length ------------------------------------------------
 
 ii = 4
