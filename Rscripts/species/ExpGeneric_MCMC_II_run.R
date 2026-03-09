@@ -198,7 +198,7 @@ experiments = list("Zipfs" = params_zipfs,
 
 alpha <- alfa <- 0.05
 num_cores = 25 # <---
-Nrep = 500 # <---
+Nrep = 50 # <---
 n = 500
 Rmax = 100; RmaxFD = 50
 Mmin_grid = 50; Mmax_grid = 1000
