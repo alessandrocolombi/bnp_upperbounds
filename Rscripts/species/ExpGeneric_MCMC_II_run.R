@@ -70,10 +70,10 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   b_theta = mu_theta/var_prior
   
   ## b) FDP hyperparameters
-  mu_Lambda = 2*Kn #find_ma_worstunif(n,alpha) - 1
+  mu_Lambda = Kn 
   a_Lambda = mu_Lambda*mu_Lambda/var_prior
   b_Lambda = mu_Lambda/var_prior
-  mu_gamma = Hychoice_MCMC_general("FDP", n, Kn, hy_prior = c(mu_Lambda) )
+  mu_gamma = 1 #Hychoice_MCMC_general("FDP", n, Kn, hy_prior = c(mu_Lambda) )
   a_gamma  = mu_gamma*mu_gamma/var_prior
   b_gamma  = mu_gamma/var_prior
   
@@ -197,7 +197,7 @@ experiments = list("Zipfs" = params_zipfs,
                    "NegBin" = params_negbin)
 
 alpha <- alfa <- 0.05
-num_cores = 25 # <---
+num_cores = 33 # <---
 Nrep = 50 # <---
 n = 500
 Rmax = 100; RmaxFD = 50

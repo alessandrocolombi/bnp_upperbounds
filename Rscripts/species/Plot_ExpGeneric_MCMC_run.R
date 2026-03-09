@@ -54,14 +54,14 @@ M_max = 200
 seed0 = 42
 set.seed(seed0)
 
-save_name_base = paste0("save/Species_MCMC") 
-save_name_base_cov = paste0("save/Species_MCMC_Cov_") 
+save_name_base = paste0("save/Species_MCMC_II_") 
+save_name_base_cov = paste0("save/Species_MCMC_II_Cov_") 
 img_fld = paste0("img/Species_") 
 
 
 # Coverages ---------------------------------------------------------------
 
-save_cov = TRUE
+save_cov = FALSE
 igrid = c(4)
 ii = 4
 cov_mat_print = vector("list",length = length(variance_prior_vec)); counter = 1
@@ -185,6 +185,7 @@ PostEst_gammaDM = do.call(cbind,lapply(PostMeans, function(x) x[seq(2,LMgrid,by 
 rownames(PostEst_gammaDM) = Mgrid[seq(2,LMgrid,by = 2)]
 colnames(PostEst_gammaDM) = variance_prior_vec
 PostEst_gammaDM
+
 # CI length ------------------------------------------------
 
 ii = 4
