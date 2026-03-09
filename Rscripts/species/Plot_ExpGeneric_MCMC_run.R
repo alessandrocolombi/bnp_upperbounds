@@ -24,7 +24,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 # Plot options ------------------------------------------------------------------
 save_img = FALSE
-width = 12; height = 6
+width = 12; height = 8
 cex.labels <- cex.lab <- 1.5
 cex.axis <- 1.5
 cex.legend <- 1.5
@@ -106,7 +106,14 @@ for(ii in igrid){
 
 cov_mat_print
 
-# Coverage - Table paper --------------------------------------------------
+# Coverage - Table paper -----------------------------------
+Tables = lapply(cov_mat_print, function(x) x[seq(2,LMgrid,by = 2),])
+
+mat = cbind(Tables[[1]][,1],Tables[[2]][,1],Tables[[3]][,1],Tables[[4]][,1],
+            Tables[[1]][,2],Tables[[2]][,2],Tables[[3]][,2],Tables[[4]][,2],
+            Tables[[1]][,3],Tables[[2]][,3],Tables[[3]][,3],Tables[[4]][,3],
+            Tables[[1]][,4],Tables[[2]][,4],Tables[[3]][,4],Tables[[4]][,4])
+colnames(mat) = c(rep("Freq",4),rep("PD",4),rep("FDP",4),rep("DirMulti",4))
 # Par Est --------------------------------------------------
 ii = 4
 igrid = c(4)
@@ -122,6 +129,7 @@ for(ii in igrid){
     if(length(trim_params)>1)
       trim_params = paste0(trim_params[1],"_",trim_params[2])
     
+    PostMeans = vector("list",length = length(variance_prior_vec)); counter =  1
     for(var_prior in variance_prior_vec){
       # Load
       # filename = paste0(save_name_base,name,"_nfix_",trim_params,".Rdat")
@@ -130,8 +138,8 @@ for(ii in igrid){
       
       # Plot
       ParEst_mcmc = lapply(ExpRes_list, function(x) x[,c(6:10)] )
-      ParEst_mcmc <- simplify2array(ParEst_mcmc) # 3 x 5 x LMgrid
-      
+      ParEst_mcmc <- simplify2array(ParEst_mcmc) # Nrep x Nparams x LMgrid
+      PostMeans[[counter]] = t(apply(ParEst_mcmc, c(2,3), mean)); counter = counter +1
       params_names = colnames(ExpRes_list[[1]])[6:10]
       for(ij in 1:dim(ParEst_mcmc)[2]){
         xx = ParEst_mcmc[,ij,]
@@ -149,7 +157,7 @@ for(ii in igrid){
         img_name = paste0(img_fld,name,"_MCMC","_v",var_prior,"_nfix_",trim_params,"_",params_names[ij],".pdf")
         if(save_img)
           pdf(img_name, width = width, height = height)
-        par( mfrow = c(1,1), mar = c(3.5,6,1,1), mgp=c(4,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+        par( mfrow = c(1,1), mar = c(3.5,6,1,1), mgp=c(4.5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
         plot(0,0,  yaxt = "n", xaxt = "n",
              xlab = "", ylab = paste0(var_prior," -- ",params_names[ij]),
              xlim = xlim_plot , ylim = ylim_plot, 
@@ -171,7 +179,13 @@ for(ii in igrid){
     
   }
 }
-# CI length ---------------------------------------------------------------
+
+
+PostEst_gammaDM = do.call(cbind,lapply(PostMeans, function(x) x[seq(2,LMgrid,by = 2),5]))
+rownames(PostEst_gammaDM) = Mgrid[seq(2,LMgrid,by = 2)]
+colnames(PostEst_gammaDM) = variance_prior_vec
+PostEst_gammaDM
+# CI length ------------------------------------------------
 
 ii = 4
 igrid = c(4)

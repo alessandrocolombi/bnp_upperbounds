@@ -1044,16 +1044,55 @@ SimModel_Post_generic = function(model,Kn,Nj,params,Mmax,Nrep,seed = 091079){
 }
 
 
+# Expected Num Species ----------------------------------------------------
+
+Expected_Kn = function(model, n, Kn, params, M=NULL, 
+                       seed = 31231, M_max = 500, Kn_max = 400)
+{
+  if(model == "PD"){
+    sigma = params[1]; theta = params[2]
+    if(sigma < 1e-10){
+      # Dirichlet process case
+      ExpKn = theta * ( digamma(theta+n) - digamma(theta) )
+    }else{
+      # Pitman-Yor case
+      logA = lgamma(theta) - lgamma(theta+sigma) + lgamma(theta+n+sigma) - lgamma(theta+n) 
+      ExpKn = theta/sigma * expm1(logA)
+    }
+    return( ExpKn )
+  }else if(model == "FDP"){
+    gamma = params[1]; Lambda = params[2]
+    logC_vec = compute_logC(n, -gamma, 0.0)
+    logC_vec = logC_vec[-1] # length n
+    logV_vec = compute_logV_all( n, gamma, Lambda, M_max, Kn_max ) # length Kn_max (<= n)
+    probs = exp( logC_vec[1:length(logV_vec)] + logV_vec )
+    ExpKn = sum( probs * 1:length(probs) )
+    return(ExpKn)
+  }else if(model == "DirMulti"){
+    stop("Not yet implemented")
+  }
+  stop("model must either be PD, FDP or DirMulti")
+}
+
 # ParEst - MCMC -----------------------------------------------------------
 
 
-ParEst_MCMC_generic = function(model,n,Kn,Nj,Niter,init_val,hy_prior,Adp_var,UpdateParam,M=NULL,seed = 31231, M_max = 500)
+ParEst_MCMC_generic = function(model, n, Kn, Nj, Niter,
+                               init_val, hy_prior, Adp_var,
+                               UpdateParam, M=NULL, 
+                               seed = 31231, M_max = 500)
 {
   if(model == "FDP"){
-    gamma0 = init_val[1];Lambda0 = init_val[2]
-    a_gamma = hy_prior[1];b_gamma = hy_prior[2];a_Lambda = hy_prior[3];b_Lambda = hy_prior[4];
+    # Initial values
+    gamma0 = init_val[1];  Lambda0 = init_val[2]
+    # Hyperprior params
+    a_gamma = hy_prior[1]; b_gamma = hy_prior[2];
+    a_Lambda = hy_prior[3];b_Lambda = hy_prior[4];
+    # Adaptive variance
     AdpVar_gamma = Adp_var[1]; AdpVar_Lambda = Adp_var[2]
+    # Update or not
     UpdateGamma=UpdateParam[1]; UpdateLambda = UpdateParam[2]
+    # Run
     res = GibbsSampler_FDP(n,Kn,Nj,Niter,gamma0,Lambda0,a_gamma,b_gamma,a_Lambda,b_Lambda,
                            AdpVar_gamma,AdpVar_Lambda,UpdateGamma,UpdateLambda,M_max,seed)
     return(res)
@@ -1061,24 +1100,76 @@ ParEst_MCMC_generic = function(model,n,Kn,Nj,Niter,init_val,hy_prior,Adp_var,Upd
   if(model == "DirMulti"){
     if(is.null(M))
       stop("M must be provided if model is DirMulti")
+    
+    # Initial values
     gamma0 = init_val[1]
+    # Hyperprior params
     a_gamma = hy_prior[1];b_gamma = hy_prior[2]
+    # Adaptive variance
     AdpVar_gamma = Adp_var[1]
+    # Update or not
     UpdateGamma=UpdateParam[1]
+    # Run
     res = GibbsSampler_DirMulti(n,Nj,M,Niter,gamma0,a_gamma,b_gamma,
                                 AdpVar_gamma,UpdateGamma,seed)
     return(res)
   }
   if(model == "PD"){
+    
+    # Initial values
     sigma0 = init_val[1];theta0 = init_val[2]
-    a_sigma = hy_prior[1];b_sigma = hy_prior[2];a_theta = hy_prior[3];b_theta = hy_prior[4];
+    # Hyperprior params
+    a_sigma = hy_prior[1];b_sigma = hy_prior[2];
+    a_theta = hy_prior[3];b_theta = hy_prior[4];
+    # Adaptive variance
     AdpVar_sigma = Adp_var[1]; AdpVar_theta = Adp_var[2]
+    # Update or not
     UpdateSigma=UpdateParam[1]; UpdateTheta = UpdateParam[2]
+    # Run
     res = GibbsSampler_PYP(n,Kn,Nj,Niter,sigma0,theta0,a_sigma,b_sigma,a_theta,b_theta,
                            AdpVar_sigma,AdpVar_theta,UpdateSigma,UpdateTheta,seed)
     return(res)
   }
   stop("model must either be PD, FDP or DirMulti")
 }
+
+
+
+Hychoice_MCMC_general = function(model, n, Kn, 
+                                 hy_prior, M=NULL, 
+                                 seed = 31231, M_max = 500)
+{
+  if(model == "PD"){
+    a_sigma = hy_prior[1];b_sigma = hy_prior[2];
+    ExpSigma = a_sigma/(a_sigma+b_sigma)
+    fmin = function(x){ (Kn - Expected_Kn(model,n,Kn,params=c(ExpSigma,x)))^2 }
+    start_params <- c(x = 1)
+    fit <- optim(par = start_params, fn = fmin, 
+                 method = "L-BFGS-B",
+                 lower = c(1e-10), upper = c(1e10)) 
+    ExpTheta = fit$par
+    return( ExpTheta )
+  }else if(model == "FDP"){
+    ExpLambda = hy_prior[1]
+    fmin = function(x){ (Kn - Expected_Kn(model,n,Kn,params=c(x,ExpLambda)))^2 }
+    start_params <- c(x = 1)
+    fit <- optim(par = start_params, fn = fmin, 
+                 method = "L-BFGS-B",
+                 lower = c(1e-10), upper = c(10000)) 
+    ExpGamma = fit$par
+    return( ExpGamma )
+  }else if(model == "DirMulti"){
+    stop("Not yet implemented")
+  }
+  stop("model must either be PD, FDP or DirMulti")
+}
+
+
+
+
+
+
+
+
 
 

@@ -15,7 +15,7 @@
 using namespace Rcpp;
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
-//	Stirling numbers
+//	Stirling numbers 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 // Matrix of size (n+1)x(n+1) such that log|s(n,k)| is in position (n+1,k+1) (counting from 1)
 // e.g., n = 4; Mat = lastirlings1(n); exp(Mat)[n,] = log(6,11,6,1) = (1.791,2.397,1.791,0) (counting from 0) 
@@ -157,36 +157,8 @@ double log_stable_sum(const Rcpp::NumericVector& a, const bool is_log){
 
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------
-//	Factorials and Pochammer
+//	Factorials and Pochammer and generalized factorial coefficients
 //------------------------------------------------------------------------------------------------------------------------------------------------------
-
-//' log Raising Factorial (old)
-//'
-//' This function computes the logarithm of the rising factorial \code{(a)_n} implementing it from scratch.
-//' Notation is log( Gamma(a+n)/Gamma(a) )
-// [[Rcpp::export]]
-double log_raising_factorial_old(const unsigned int& n, const double& a)
-{
-	if(n==0)
-		return 0.0;
-	if(a<0)
-		throw std::runtime_error("Error in my_log_raising_factorial, can not compute the raising factorial of a negative number in log scale");
-	else if(a==0.0){
-		return -std::numeric_limits<double>::infinity();
-	}
-	else{
-
-		double val_max{std::log(a+n-1)};
-		double res{1.0};
-		if (n==1)
-			return val_max;
-		for(std::size_t i = 0; i <= n-2; ++i){
-			res += std::log(a + (double)i) / val_max;
-		}
-		return val_max*res;
-
-	}
-}
 
 //' log Raising Factorial
 //'
@@ -208,6 +180,51 @@ double log_raising_factorial(const unsigned int& n, const double& a)
 	else{
 		return std::lgamma((double)n + a) - std::lgamma(a);
 	}
+}
+
+// [[Rcpp::export]]
+Rcpp::NumericVector compute_logC(const unsigned int& n, const double& scale, const double& location){
+
+	if(!( (scale<0) & (location<=0) ) ){
+		throw std::runtime_error("Error in compute_logC. The recursive formula for the absolute values of the C numbers can be you used if the scale is strictly negative and location in non positive");
+	}
+	//	Rcpp::Rcout<<" ... Exact Calculation ... "<<std::endl;
+	const double& s = -scale; //s is strictly positive
+	const double& r = -location; //r is non-negative
+
+
+	Rcpp::NumericVector LogC_old(n+1, 0.0);
+
+	if(n == 0)
+		return LogC_old; // nothing to do in this case
+
+	// Compute the first row
+	LogC_old[0] = log_raising_factorial(1,r);
+	LogC_old[1] = std::log(s);
+
+	//Rcpp::NumericVector LogC_update(LogC_old);
+	Rcpp::NumericVector LogC_update(n+1, 0.0);
+	double coef(0.0);
+	for(std::size_t nn = 2; nn <= n; ++nn ){ //for each row
+		LogC_update[0] = log_raising_factorial(nn,r);
+		for(std::size_t k = 1; k < nn; ++k){ //for each column but the first and the last one
+			coef = s*k + r + nn - 1;
+			LogC_update[k] = std::log(coef) + LogC_old[k] + std::log( 1 + s/coef*std::exp( LogC_old[k-1] - LogC_old[k] ) );
+		}
+		LogC_update[nn] = nn*std::log(s); //update last element
+
+		//std::copy(LogC_update.begin(),LogC_update.end(),LogC_old.begin());
+		std::swap(LogC_old, LogC_update); //avoid copy, LogC_update has to be overwritten but in this way no copy is performed to update LogC_old.
+		//Check for User Interruption
+		try{
+		    Rcpp::checkUserInterrupt();
+		}
+		catch(Rcpp::internal::InterruptedException e){
+		    //Print error and return
+		    throw std::runtime_error("Execution stopped by the user");
+		}
+	}
+	return (LogC_old);
 }
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 //	Stick-Breaking
@@ -828,8 +845,8 @@ double compute_logV( const int& Kn, const int& n,
 	// Start the loop, let us compute all the elements
 	for(int Mstar=0; Mstar <= M_max; ++Mstar){
 		log_vect_res[Mstar] = log_raising_factorial( Kn, (double)(Mstar+1) ) +
-							  log_dPois1(Mstar+Kn, Lambda) - 
-							  log_raising_factorial( n, gamma*(double)(Mstar + Kn) ) ;
+							            log_dPois1(Mstar+Kn, Lambda) - 
+							            log_raising_factorial( n, gamma*(double)(Mstar + Kn) ) ;
 		// Check if it is the new maximum
         if(log_vect_res[Mstar]>val_max){
         	idx_max = Mstar;
@@ -841,6 +858,19 @@ double compute_logV( const int& Kn, const int& n,
 	return log_stable_sum(log_vect_res, TRUE, val_max, idx_max);
 }
 
+// [[Rcpp::export]]
+Rcpp::NumericVector compute_logV_all( const int& n, const double& gamma, const double& Lambda, 
+				                              unsigned int M_max, int Kn_max )
+{
+	if(Kn_max > n)
+		Kn_max = n;
+
+	Rcpp::NumericVector res(Kn_max, 0.0);
+	for(int r=1; r<=Kn_max; r++)
+		res[r-1] = compute_logV(r,n,gamma,Lambda,M_max);
+
+	return res;
+}
 // [[Rcpp::export]]
 double log_eppfFD( const int& n, const int& Kn, const std::vector<int>& n_j, 
 				           const double& gamma, const double& Lambda, unsigned int M_max )

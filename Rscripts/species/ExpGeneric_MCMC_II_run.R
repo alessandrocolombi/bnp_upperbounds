@@ -61,17 +61,28 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   
   ### Prior definition - MCMC params
   Niter = 10000
+  
+  ## a) PD hyperparameters
   a_sigma = 1
   b_sigma = 1
-  mu_theta = Kn
+  mu_theta = Hychoice_MCMC_general("PD", n, Kn, hy_prior = c(a_sigma,b_sigma) )
   a_theta = mu_theta*mu_theta/var_prior
   b_theta = mu_theta/var_prior
-  mu_gamma = 1
-  a_gamma = mu_gamma*mu_gamma/var_prior
-  b_gamma = mu_gamma/var_prior
-  mu_Lambda = Kn
+  
+  ## b) FDP hyperparameters
+  mu_Lambda = 2*Kn #find_ma_worstunif(n,alpha) - 1
   a_Lambda = mu_Lambda*mu_Lambda/var_prior
   b_Lambda = mu_Lambda/var_prior
+  mu_gamma = Hychoice_MCMC_general("FDP", n, Kn, hy_prior = c(mu_Lambda) )
+  a_gamma  = mu_gamma*mu_gamma/var_prior
+  b_gamma  = mu_gamma/var_prior
+  
+  ## c) DirMulti hyperparameters
+  mu_gammaDM = 1
+  a_gammaDM  = mu_gammaDM*mu_gammaDM/var_prior
+  b_gammaDM  = mu_gammaDM/var_prior
+  
+  ### Bayesian UB computation
   #c) Upper bound (PD)
   model = "PD"
   init_val = c(0.5,Kn)
@@ -109,7 +120,7 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   #d) Upper bound (DirMulti)
   model = "DirMulti"
   init_val = c(1)
-  hy_prior = c(a_gamma,b_gamma) 
+  hy_prior = c(a_gammaDM,b_gammaDM) 
   Adp_var = c(0.1)
   UpdateParam = c(TRUE)
   fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=n_i,Niter=Niter,
@@ -200,16 +211,16 @@ set.seed(seed0)
 seeds = sample(1:999999, size = Nexp)
 
 save_exp = TRUE # <---
-save_name_base = paste0("save/Species_MCMC") 
+save_name_base = paste0("save/Species_MCMC_II_") 
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------
 igrid = c(4)
-ii = 1
+ii = 4
 for(ii in igrid){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 3
+  jj = 1
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
