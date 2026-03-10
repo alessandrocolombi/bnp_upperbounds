@@ -40,7 +40,7 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   res_names = c("Mmax","Freq","PD","FDP","DirMulti",
                 "sigma","theta",
                 "gamma_FDP","Lambda_FDP",
-                "gamma_DM")
+                "gamma_DM", "Kn")
   res = matrix(NA,nrow = 1, ncol = length(res_names))
   colnames(res) = res_names
   #a) Generate data
@@ -48,6 +48,7 @@ ExpGeneric_speciesMCMC_nfix_run = function(M, n, name, params, var_prior,
   n_i = tabulate(data, nbins = M)
   idx_obs = which(n_i > 0)
   Kn = length(idx_obs)
+  res[1,11] = Kn
   data_obs = n_i[idx_obs]
   if(Kn == M){
     Mmax = 0
@@ -198,7 +199,7 @@ experiments = list("Zipfs" = params_zipfs,
 
 alpha <- alfa <- 0.05
 num_cores = 33 # <---
-Nrep = 500 # <---
+Nrep = 200 # <---
 n = 500
 Rmax = 100; RmaxFD = 50
 Mmin_grid = 50; Mmax_grid = 1000
@@ -214,7 +215,7 @@ save_exp = TRUE # <---
 save_name_base = paste0("save/Species_MCMC_II_") 
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------
-igrid = c(4)
+igrid = c(3,4)
 ii = 4
 for(ii in igrid){
   

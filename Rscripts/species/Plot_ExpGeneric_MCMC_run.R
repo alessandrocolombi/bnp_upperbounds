@@ -23,12 +23,13 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Custom functions --------------------------------------------------------
 
 # Plot options ------------------------------------------------------------------
-save_img = FALSE
+save_img = TRUE
 width = 12; height = 8
 cex.labels <- cex.lab <- 1.5
 cex.axis <- 1.5
 cex.legend <- 1.5
 mycol = c("darkorange","darkred","darkblue","lightblue")
+mycol_var = hcl.colors(n = 4, palette = "Greens", rev = TRUE)
 mycol2 = c("black","lightblue")
 lgd_names = c("Oracle","Freq","PD","FDP","Dir-Multi")
 
@@ -54,14 +55,15 @@ M_max = 200
 seed0 = 42
 set.seed(seed0)
 
-save_name_base = paste0("save/Species_MCMC_II_") 
+# save_name_base = paste0("save/Species_MCMC_II_") 
+save_name_base = paste0("save/Species_MCMC") 
 save_name_base_cov = paste0("save/Species_MCMC_II_Cov_") 
 img_fld = paste0("img/Species_") 
 
 
 # Coverages ---------------------------------------------------------------
 
-save_cov = FALSE
+save_cov = TRUE
 igrid = c(4)
 ii = 4
 cov_mat_print = vector("list",length = length(variance_prior_vec)); counter = 1
@@ -114,9 +116,11 @@ mat = cbind(Tables[[1]][,1],Tables[[2]][,1],Tables[[3]][,1],Tables[[4]][,1],
             Tables[[1]][,3],Tables[[2]][,3],Tables[[3]][,3],Tables[[4]][,3],
             Tables[[1]][,4],Tables[[2]][,4],Tables[[3]][,4],Tables[[4]][,4])
 colnames(mat) = c(rep("Freq",4),rep("PD",4),rep("FDP",4),rep("DirMulti",4))
+mat
+
 # Par Est --------------------------------------------------
-ii = 4
-igrid = c(4)
+ii = 3
+igrid = c(3)
 for(ii in igrid){
   
   name = names(experiments)[ii]
@@ -187,10 +191,11 @@ colnames(PostEst_gammaDM) = variance_prior_vec
 PostEst_gammaDM
 
 
-# ParEst - Specific quantity ----------------------------------------------
 
+# ParEst - Specific quantity ----------------------------------------------
+igrid = c(4)
 variable = c("sigma","theta","gamma_FDP","Lambda_FDP","gamma_DM")
-vv = 5
+vv = 5; ii = 4
 for(ii in igrid){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
@@ -202,7 +207,71 @@ for(ii in igrid){
     if(length(trim_params)>1)
       trim_params = paste0(trim_params[1],"_",trim_params[2])
     
+    #########################################################
+    # Estimates EB
+    #########################################################
+    Mmin_grid = 50; Mmax_grid = 1000
+    Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
+    Nexp = length(Mgrid)
+    Nrep = 100
+    ParEst_EB_list = vector("list",length(variable))
+    ParEst_EB_list = lapply(ParEst_EB_list, function(x) matrix(0,nrow = Nrep,ncol = LMgrid))
+    for(mm in 1:LMgrid){
+      cat("\n",mm,"/",LMgrid,"\n")
+      M = Mgrid[mm]
+      ptrue = sim_generic_species(name,M,params)
+      ptrue = sort(ptrue, decreasing = TRUE)
+      ptrue_mat = matrix(nrow = Nrep,ncol = M)
+      ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
+      
+      data_mat = SimData(n,ptrue_mat, 41232) # n x Nrep
+      ParEst = t(apply(data_mat, 2, function(data){
+        n_i = tabulate(data, nbins = M)
+        idx_obs = which(n_i > 0)
+        Kn = length(idx_obs)
+        data_obs = n_i[idx_obs]
+        
+        res = matrix(nrow = 1, ncol = 5)
+        colnames(res) = c("sigma-PD","theta-PD","Lambda-FDP","gamma-FDP","gamma-DirMulti")
+        #a) PD
+        # Param. estimation (PYP)
+        start_params <- c(alpha = 0.5, theta = 1)
+        fit <- optim(par = start_params, fn = llik_pyp, 
+                     n = n, Kn = Kn, data_obs = data_obs, # extra parameters
+                     method = "L-BFGS-B",
+                     lower = c(0, -1), upper = c(1-1e-10, Inf)) 
+        res[1,1] = fit$par[1]
+        res[1,2] = fit$par[2]
+        
+        #b) FDP
+        # Param. estimation (FDP)
+        start_params <- c(gamma = 0.1, Lambda = Kn)
+        fit <- optim(par = start_params, fn = llik_FD, 
+                     n = n, Kn = Kn, data_obs = data_obs, M_max = M_max,# extra parameters
+                     method = "L-BFGS-B",
+                     lower = c(1e-5, 1e-5), upper = c(Inf, Inf)) 
+        res[1,3] = fit$par[2]
+        res[1,4] = fit$par[1]  
+        
+        #c) Dirichlet-Multinomial --> M = M
+        # Param. estimation (DirMulti)
+        start_params <- c(gamma = 0.5)
+        fit <- optim(par = start_params, fn = llik_DirMult,
+                     n = n, M = M, data = n_i, # extra parameters
+                     method = "L-BFGS-B",
+                     lower = c(1e-10), upper = c(Inf))
+        res[1,5] = fit$par[1]   
+        
+        res
+      })) # Nrep x 3 matrix
+      for(vv in seq_along(variable)){
+        ParEst_EB_list[[vv]][,mm] = ParEst[,vv]
+      }
+    }
+    
+    
     # Loop for the different variables of interest
+    vv = 5
     for(vv in seq_along(variable)){
       xx_list_mat = vector("list", length(variance_prior_vec))
       for(hh in seq_along(variance_prior_vec)){
@@ -213,13 +282,16 @@ for(ii in igrid){
         xx_list_mat[[hh]] = do.call(cbind, xx_list) # Nrep x LMgrid
       }
       ## axis labels
-      ymax = (11/10) * max(sapply(xx_list_mat, quantile, 0.975)); ymin = (10/11) * min(sapply(xx_list_mat, quantile, 0.025))
+      ymax = (11/10) * max(c(sapply(xx_list_mat, quantile, 0.975), quantile(ParEst_EB_list[[vv]], 0.95))); 
+      ymin = (10/11) * min(c(sapply(xx_list_mat, quantile, 0.025), quantile(ParEst_EB_list[[vv]],0.05)))
       ylim_plot = c(ymin,ymax)
-      ypos = seq(ymin,ymax,length.out = 5)
+      # ylim_plot = log(ylim_plot)
+      ypos = seq(ymin,ymax,length.out = 8)
       ylabs = as.character(round(ypos,1))
-      xmax = LMgrid+1; xmin = 0
-      xlim_plot = c(0,xmax)
-      xpos = 1:LMgrid
+      xmax = 2*(LMgrid+1); xmin = 0
+      shift = c(-0.25,0,0.25,0.5)
+      xlim_plot = c(1,xmax)
+      xpos = seq(1,2*LMgrid, by = 2)
       xlabs = as.character(Mgrid)
       
       
@@ -227,26 +299,47 @@ for(ii in igrid){
       if(save_img)
         pdf(img_name, width = width, height = height)
       par( mfrow = c(1,1), mar = c(3.5,6,1,1), mgp=c(4.5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-      plot(0,0,  yaxt = "n", xaxt = "n",
+      plot(1,1,  yaxt = "n", xaxt = "n",
            xlab = "", ylab = paste0(variable[vv]),
            xlim = xlim_plot , ylim = ylim_plot, 
+           log = "y",
            main = paste0(" "),
            type = "n")
       grid(lty = 1,lwd = 1, col = "gray90" )
       axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
       axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
       mtext("M", side = 1, line = 2.5, cex = cex.axis)
-      for(hh in 1:length(variable)){
+      for(hh in 1:length(variance_prior_vec)){
         for(ii in 1:(LMgrid)){
-          boxplot(xx_list_mat[[hh]][,ii], at = xpos[ii], add = T, 
-                  col = hh, pch = 16, yaxt = "n", cex = 0.5)
+          boxplot(xx_list_mat[[hh]][,ii], at = xpos[ii]+shift[hh], add = T, 
+                  col = mycol_var[hh], pch = 16, yaxt = "n", cex = 0.5)
         }
+      }
+      for(ii in 1:(LMgrid)){
+        boxplot(ParEst_EB_list[[vv]][,ii], at = xpos[ii]-0.5, add = T, 
+                col = "red", pch = 16, yaxt = "n", cex = 0.5)
       }
       if(save_img)
         dev.off()
     }
   }
 }
+
+
+# Mstar FDP ---------------------------------------------------------------
+
+gammaFDP_list_mat = vector("list", length(variance_prior_vec))
+LambdaFDP_list_mat = vector("list", length(variance_prior_vec))
+for(hh in seq_along(variance_prior_vec)){
+  var_prior = variance_prior_vec[hh]
+  filename = paste0(save_name_base,name,"_v_",var_prior,"_nfix_",trim_params,".Rdat")
+  load(filename)
+  xx_list = lapply(ExpRes_list, function(x) x[,3+5])
+  gammaFDP_list_mat[[hh]] = do.call(cbind, xx_list) # Nrep x LMgrid
+  xx_list = lapply(ExpRes_list, function(x) x[,4+5])
+  LambdaFDP_list_mat[[hh]] = do.call(cbind, xx_list) # Nrep x LMgrid
+}
+
 # CI length ------------------------------------------------
 
 ii = 4
@@ -318,6 +411,74 @@ for(ii in igrid){
   }
 }
 
+
+# EB - CI length ------------------------------------------------
+save_name_base = paste0("save/Species_") 
+ii = 4
+igrid = c(4)
+for(ii in igrid){
+  
+  name = names(experiments)[ii]
+  Ncases = length(experiments[[ii]])
+  jj = 1
+  for(jj in 1:Ncases){
+    cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
+    params = experiments[[ii]][[jj]]
+    trim_params = sapply(params, get_first3digits, 4)
+    if(length(trim_params)>1)
+      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    
+      # Load
+      filename = paste0(save_name_base,name,"_nfix_",trim_params,".Rdat")
+      load(filename)
+      
+      # Plot
+      oracle = sapply(ExpRes_list, function(x) quantile(x[,1], 1-alpha))
+      ExpRes_qnt = lapply(ExpRes_list, function(x) apply(x[,c(2:5)],2,quantile,probs = c(0.025,0.5,0.975),na.rm = TRUE) )
+      ExpRes_qnt <- simplify2array(ExpRes_qnt) # 3 x 5 x LMgrid
+      ## axis labels
+      ymax = (11/10) * max(ExpRes_qnt,oracle); ymin = (10/11) * min(ExpRes_qnt,oracle)
+      # ymax = 17.5*1e-3; ymin = 11.5*1e-3
+      ylim_plot = c(ymin,ymax)
+      ypos = seq(ymin,ymax,length.out = 5)
+      ylabs = as.character(round(ypos*1e3,0))
+      xmax = max(Mgrid); xmin = min(Mgrid)
+      xlim_plot = c(0,xmax)
+      xpos = Mgrid
+      xlabs = as.character(Mgrid)
+      
+      
+      img_name = paste0(img_fld,name,"_EB","_nfix_",trim_params,".pdf")
+      if(save_img)
+        pdf(img_name, width = width, height = height)
+      par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+      plot(0,0,  yaxt = "n", xaxt = "n",
+           xlab = "", ylab = "1000 * bound",
+           xlim = xlim_plot , ylim = ylim_plot, 
+           main = paste0(" "),
+           type = "n")
+      grid(lty = 1,lwd = 1, col = "gray90" )
+      axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
+      axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
+      mtext("M", side = 1, line = 2.5, cex = cex.axis)
+      points( x = Mgrid, y = oracle, 
+              type = "l", lwd = 5, col = "black" )
+      for(ij in 1:dim(ExpRes_qnt)[2]){
+        points( x = Mgrid, y = ExpRes_qnt[2,ij,], 
+                type = "l", lwd = 5, col = mycol[ij] )
+        polygon( c(Mgrid, rev(Mgrid)),
+                 c(ExpRes_qnt[1,ij,], rev(ExpRes_qnt[3,ij,])),
+                 col = scales::alpha(mycol[ij], 0.25),
+                 border = NA) # plot in-sample bands
+      }
+      legend("topleft",lgd_names,
+             fill = c("black",mycol), 
+             cex = cex.legend, bty = "n", border = NA)
+      if(save_img)
+        dev.off()
+    
+  }
+}
 
 
 

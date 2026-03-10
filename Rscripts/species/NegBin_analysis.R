@@ -62,6 +62,43 @@ img_fld = paste0("img/Species_")
 
 filename = paste0(save_name_base,name,"_nfix_",trim_params,".Rdat")
 load(filename)
+
+
+# Empirical distribution -----------------------------------------------------
+M = 200
+n = 500
+Nrep = 100
+ptrue = sim_generic_species(name,M,params)
+ptrue = sort(ptrue, decreasing = TRUE)
+ptrue_mat = matrix(nrow = Nrep,ncol = M)
+ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
+data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+Nj_mat = apply(data_mat, 2, tabulate, nbins = M) # M x Nrep
+
+Mmax_plot = M
+xpos = seq(1,Mmax_plot,length.out = 10); xlabs = round(xpos,0)
+ymax = max(Nj_mat/n);ymin = 0
+ylim_plot = c(ymin,ymax)
+ylab = "Emp. distr."
+
+img_name = paste0("img/",name,"_",trim_params,"_EmpDistr",".pdf")
+if(save_img)
+  pdf(img_name, width = width+6, height = height)
+par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+plot(0,0,type = "n",xlim = c(0,(Mmax_plot+1)), ylim = ylim_plot,
+     xlab = "r", ylab = ylab, 
+     xaxt = "n", yaxt = "n",
+     main = "",
+     cex.lab = cex.lab, cex.axis = cex.axis)
+axis(side = 2, las = 1, cex.axis = cex.axis)
+axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+grid(lty = 1,lwd = 1, col = "gray90" )
+for(m in 1:M){
+  points(y = Nj_mat[m,]/n, x = rep(m,Nrep), pch = 16, cex = 0.5)
+}
+points(x = 1:M, y = ptrue, col = "red", pch = 16, type = "b", lwd = 3)
+if(save_img)
+  dev.off()
 # Missing mass with M -----------------------------------------------------
 
 Mmin_grid = 50; Mmax_grid = 1000
@@ -144,8 +181,243 @@ for(ii in 1:(LMgrid)){
 if(save_img)
   dev.off()
 
+# Kn with M -------------------------------------------------------------
+Mmin_grid = 50; Mmax_grid = 1000
+Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
+Nexp = length(Mgrid)
 
+Kn_list = vector("list",LMgrid)
+for(ii in 1:LMgrid){
+  M = Mgrid[ii]
+  ptrue = sim_generic_species(name,M,params)
+  ptrue = sort(ptrue, decreasing = TRUE)
+  ptrue_mat = matrix(nrow = Nrep,ncol = M)
+  ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
+  
+  data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+  Kn = apply(rbind(data_mat,ptrue_mat), 2, function(x){
+    data = x[1:n]
+    pj = x[(n+1):(n+M)]
+    n_i = tabulate(data, nbins = M)
+    idx_obs = which( n_i > 0 )
+    length(idx_obs)
+  }) # M x Nrep
+  
+  Kn_list[[ii]] = Kn
+}
+
+# Observed symbols
+pos = 1:LMgrid
+xpos = pos; xlabs = Mgrid
+ymax = max(sapply(Kn_list,max));ymin = min(sapply(Kn_list,min))
+ylim_plot = c(ymin,ymax)
+ylab = "Kn"
+
+img_name = paste0("img/",name,"_",trim_params,"_Kn",".pdf")
+if(save_img)
+  pdf(img_name, width = width+6, height = height)
+par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+plot(0,0,type = "n",xlim = c(0,(LMgrid+1)), ylim = ylim_plot,
+     xlab = "r", ylab = ylab, 
+     xaxt = "n", yaxt = "n",
+     main = "",
+     cex.lab = cex.lab, cex.axis = cex.axis)
+axis(side = 2, las = 1, cex.axis = cex.axis)
+axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+grid(lty = 1,lwd = 1, col = "gray90" )
+for(ii in 1:(LMgrid)){
+  boxplot(Kn_list[[ii]], at = pos[ii], add = T, 
+          col = "grey90", pch = 16, yaxt = "n", cex = 0.5)
+}
+if(save_img)
+  dev.off()
+
+
+
+# Not observed symbols
+NotKn_list = lapply(1:LMgrid, function(a) Mgrid[a] - Kn_list[[a]])
+pos = 1:LMgrid
+xpos = pos; xlabs = Mgrid
+ymax = max(sapply(NotKn_list,max));ymin = min(sapply(NotKn_list,min))
+ylim_plot = c(ymin,ymax)
+ylab = "M - Kn"
+
+img_name = paste0("img/",name,"_",trim_params,"_Kn",".pdf")
+if(save_img)
+  pdf(img_name, width = width+6, height = height)
+par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+plot(0,0,type = "n",xlim = c(0,(LMgrid+1)), ylim = ylim_plot,
+     xlab = "r", ylab = ylab, 
+     xaxt = "n", yaxt = "n",
+     main = "",
+     cex.lab = cex.lab, cex.axis = cex.axis)
+axis(side = 2, las = 1, cex.axis = cex.axis)
+axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+grid(lty = 1,lwd = 1, col = "gray90" )
+for(ii in 1:(LMgrid)){
+  boxplot(NotKn_list[[ii]], at = pos[ii], add = T, 
+          col = "grey90", pch = 16, yaxt = "n", cex = 0.5)
+}
+if(save_img)
+  dev.off()
+
+# Kn_r with M -------------------------------------------------------------
+r = 1
+Mmin_grid = 50; Mmax_grid = 1000
+Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
+Nexp = length(Mgrid)
+
+Knr_list = vector("list",LMgrid)
+for(ii in 1:LMgrid){
+  M = Mgrid[ii]
+  ptrue = sim_generic_species(name,M,params)
+  ptrue = sort(ptrue, decreasing = TRUE)
+  ptrue_mat = matrix(nrow = Nrep,ncol = M)
+  ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
+  
+  data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+  Kn_r = apply(rbind(data_mat,ptrue_mat), 2, function(x){
+    data = x[1:n]
+    pj = x[(n+1):(n+M)]
+    n_i = tabulate(data, nbins = M)
+    idx_obs = which( n_i == 0 )
+    length(idx_obs)
+  }) # M x Nrep
+  
+  Knr_list[[ii]] = Kn_r
+}
+
+# Observed symbols
+pos = 1:LMgrid
+xpos = pos; xlabs = Mgrid
+ymax = max(sapply(Knr_list,max));ymin = min(sapply(Knr_list,min))
+ylim_plot = c(ymin,ymax)
+ylab = paste0("Kn_",r)
+
+img_name = paste0("img/",name,"_",trim_params,"_Kn",".pdf")
+if(save_img)
+  pdf(img_name, width = width+6, height = height)
+par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+plot(0,0,type = "n",xlim = c(0,(LMgrid+1)), ylim = ylim_plot,
+     xlab = "r", ylab = ylab, 
+     xaxt = "n", yaxt = "n",
+     main = "",
+     cex.lab = cex.lab, cex.axis = cex.axis)
+axis(side = 2, las = 1, cex.axis = cex.axis)
+axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+grid(lty = 1,lwd = 1, col = "gray90" )
+for(ii in 1:(LMgrid)){
+  boxplot(Knr_list[[ii]], at = pos[ii], add = T, 
+          col = "grey90", pch = 16, yaxt = "n", cex = 0.5)
+}
+if(save_img)
+  dev.off()
+
+
+# Likelihood plot ---------------------------------------------------------
+
+M = 200
+Nrep = 50
+n = 500
+ptrue = sim_generic_species(name,M,params)
+ptrue = sort(ptrue, decreasing = TRUE)
+ptrue_mat = matrix(nrow = Nrep,ncol = M)
+ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
+data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+ParEst_DM = t(apply(data_mat, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  idx_obs = which(n_i > 0)
+  Kn = length(idx_obs)
+  data_obs = n_i[idx_obs]
+  
+  #c) Dirichlet-Multinomial --> M = M
+  # Param. estimation (DirMulti)
+  start_params <- c(gamma = 0.5)
+  fit <- optim(par = start_params, fn = llik_DirMult,
+               n = n, M = M, data = n_i, # extra parameters
+               method = "L-BFGS-B",
+               lower = c(1e-10), upper = c(Inf))
+  c(fit$par[1],fit$value)
+})) 
+
+round(ParEst_DM,0)
+hh = 318
+ParEst_DM[hh,]
+n_i = tabulate(data_mat[,hh], M)
+gamma_grid = seq(0.1, 1000, length.out = 5000)
+llik_grid = rep(0,length(gamma_grid))
+for(idx_gamma in seq_along(gamma_grid)){
+  llik_grid[idx_gamma] = -llik_DirMult(gamma_grid[idx_gamma], n=n, M=M, data = n_i)
+}
+plot(x = gamma_grid, y = llik_grid)
+abline(h = -ParEst_DM[hh,2], lty = 2, col = "red")
+
+
+
+# Comparison
+rmax = 5
+hh_strange = which(ParEst_DM[,1] > 100)
+hh_common = which(ParEst_DM[,1] <= 100)
+Kn_r_mat_strange <- matrix(0,length(hh_strange),rmax+1)
+Kn_r_mat_common <- matrix(0,length(hh_common),rmax+1)
+
+counter_strange = 1
+for(hh in hh_strange){
+  n_i = tabulate(data_mat[,hh], M)
+  for(r in 0:rmax){
+    if(r == 0){
+      Kn_r_mat_strange[counter_strange,r+1] = length(which(n_i > 0))
+    }else{
+      Kn_r_mat_strange[counter_strange,r+1] = length(which(n_i == r))
+    }
+  }
+  counter_strange = counter_strange + 1
+}
+counter_common = 1
+for(hh in hh_common){
+  n_i = tabulate(data_mat[,hh], M)
+  for(r in 0:rmax){
+    if(r == 0){
+      Kn_r_mat_common[counter_common,r+1] = length(which(n_i > 0))
+    }else{
+      Kn_r_mat_common[counter_common,r+1] = length(which(n_i == r))
+    }
+  }
+  counter_common = counter_common + 1
+}
+
+for(r in 1:(rmax+1)){
+  xx = Kn_r_mat_strange[,r]
+  yy = Kn_r_mat_common[,r]
+  pos = c(1,5)
+  xpos = pos; xlabs = c("strange","common")
+  ymax = max(xx,yy);ymin = min(xx,yy)
+  ylim_plot = c(ymin,ymax)
+  ylab = paste0("Kn_",r-1)
+  
+  img_name = paste0("img/",name,"_",trim_params,"_Kn_",r,".pdf")
+  if(save_img)
+    pdf(img_name, width = width+6, height = height)
+  par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+  plot(0,0,type = "n",xlim = c(0,6), ylim = ylim_plot,
+       xlab = "r", ylab = ylab, 
+       xaxt = "n", yaxt = "n",
+       main = "",
+       cex.lab = cex.lab, cex.axis = cex.axis)
+  axis(side = 2, las = 1, cex.axis = cex.axis)
+  axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
+  grid(lty = 1,lwd = 1, col = "gray90" )
+  boxplot(xx, at = pos[1], add = T, 
+          col = "red", pch = 16, yaxt = "n", cex = 0.5)
+  boxplot(yy, at = pos[2], add = T, 
+          col = "blue", pch = 16, yaxt = "n", cex = 0.5)
+  
+  if(save_img)
+    dev.off()
+  
+}
 # Estimates - EB ---------------------------------------------------------------
+n = 500
 Mmin_grid = 50; Mmax_grid = 1000
 Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
 Nexp = length(Mgrid)
@@ -206,19 +478,21 @@ gammas_DM = lapply(ParEst_list, function(ParEst) ParEst[,5])
 
 pos = 1:LMgrid
 xpos = pos; xlabs = Mgrid
-ymax = 1000;ymin = 0
+ymax = 10000;ymin = 1
 ylim_plot = c(ymin,ymax)
-ypos = seq(ymin,ymax,length.out = 5); ylabs = round(ypos,2)
+ypos = c(seq(1,10,length.out = 5),seq(50,ymax,length.out = 5)); 
+ylabs = round(ypos,2)
 ylab = "Gamma (DirMulti)"
 
 img_name = paste0("img/",name,"_",trim_params,"_Mmax",".pdf")
 if(save_img)
   pdf(img_name, width = width+6, height = height)
 par( mfrow = c(1,1), mar = c(3.5,6.5,1,1), mgp=c(5,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-plot(0,0,type = "n",xlim = c(0,(LMgrid+1)), ylim = ylim_plot,
+plot(1,1,type = "n",xlim = c(1,(LMgrid+1)), ylim = ylim_plot,
      xlab = "r", ylab = ylab, 
      xaxt = "n", yaxt = "n",
      main = "",
+     log = "y",
      cex.lab = cex.lab, cex.axis = cex.axis)
 axis(side = 2, at = ypos, labels = ylabs, las = 1, cex.axis = cex.axis)
 axis(side = 1, at = xpos, labels = xlabs, las = 1, cex.axis = cex.axis)
