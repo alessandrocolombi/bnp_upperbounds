@@ -23,7 +23,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Custom functions --------------------------------------------------------
 
 # Plot options ------------------------------------------------------------------
-save_img = TRUE
+save_img = FALSE
 width = 12; height = 8
 cex.labels <- cex.lab <- 1.5
 cex.axis <- 1.5
@@ -55,8 +55,8 @@ M_max = 200
 seed0 = 42
 set.seed(seed0)
 
-# save_name_base = paste0("save/Species_MCMC_II_") 
-save_name_base = paste0("save/Species_MCMC") 
+save_name_base = paste0("save/Species_MCMC_II_")
+# save_name_base = paste0("save/Species_MCMC") 
 save_name_base_cov = paste0("save/Species_MCMC_II_Cov_") 
 img_fld = paste0("img/Species_") 
 
@@ -119,8 +119,8 @@ colnames(mat) = c(rep("Freq",4),rep("PD",4),rep("FDP",4),rep("DirMulti",4))
 mat
 
 # Par Est --------------------------------------------------
-ii = 3
-igrid = c(3)
+ii = 4
+igrid = c(4)
 for(ii in igrid){
   
   name = names(experiments)[ii]

@@ -199,7 +199,7 @@ experiments = list("Zipfs" = params_zipfs,
 
 alpha <- alfa <- 0.05
 num_cores = 33 # <---
-Nrep = 200 # <---
+Nrep = 500 # <---
 n = 500
 Rmax = 100; RmaxFD = 50
 Mmin_grid = 50; Mmax_grid = 1000
@@ -215,8 +215,8 @@ save_exp = TRUE # <---
 save_name_base = paste0("save/Species_MCMC_II_") 
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------
-igrid = c(3,4)
-ii = 4
+igrid = c(3)
+ii = 3
 for(ii in igrid){
   
   name = names(experiments)[ii]
