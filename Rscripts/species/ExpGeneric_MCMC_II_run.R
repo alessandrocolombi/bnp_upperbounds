@@ -188,7 +188,7 @@ mycol2 = c("black","lightblue")
 lgd_names = c("Freq","PD","FDP","Dir-Multi")
 
 # Options -----------------------------------------------------------------
-params_zipfs  = list(0.9,1.02,2)
+params_zipfs  = list(0.9,1.02,2,3)
 params_geom   = list(0.85,0.9,0.95)
 params_unif   = list(NA)
 params_negbin = list(c(1,0.003),c(5,0.003),c(1,0.01))
