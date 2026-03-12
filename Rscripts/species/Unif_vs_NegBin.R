@@ -19,6 +19,8 @@ Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
 source("../../../BinomialCIs/R/Rfunctions.R")
 Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
+
+
 # Plot options ------------------------------------------------------------------
 save_img = FALSE
 width = 12; height = 8
@@ -70,6 +72,12 @@ for(m in 1:M){
   points(y = Nj_mat[m,]/n, x = rep(m,Nrep), pch = 16, cex = 0.5)
 }
 points(x = 1:M, y = ptrue, col = "red", pch = 16, type = "b", lwd = 3)
+
+
+pval_UnifTest = apply(data_mat, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  MultinomialTest(Nj = n_i, M = M)})
+
 
 EB_Unif = t(apply(data_mat, 2, function(data){
   n_i = tabulate(data, nbins = M)
@@ -185,6 +193,11 @@ for(m in 1:M){
 }
 points(x = 1:M, y = ptrue, col = "red", pch = 16, type = "b", lwd = 3)
 
+
+
+pval_UnifTest = apply(data_mat, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  MultinomialTest(Nj = n_i, M = M)})
 
 EB_NegBin = t(apply(data_mat, 2, function(data){
   n_i = tabulate(data, nbins = M)
@@ -368,6 +381,10 @@ for(v in c(7,10,11)){
 
 
 # UB - function of params -------------------------------------------------------------------
+
+
+## DM univariate  -------------------------------------------------------
+
 UB_DM_fix = rep(1,Nrep)
 gamma = 100
 for(ii in 1:Nrep){
@@ -382,7 +399,7 @@ for(ii in 1:Nrep){
 # uniformi, Mmax è spesso maggiore di 1/M
 
 
-# Caso FDP
+# 
 UB_FDP_fix = rep(1,Nrep)
 Lambda = 50
 for(ii in 1:Nrep){
@@ -393,8 +410,9 @@ for(ii in 1:Nrep){
 }
 
 
-Nrep = 1
 
+
+Nrep = 1
 ymax = c(12)
 ymin = 4.5
 ylim_plot = c(ymin,ymax)
@@ -432,7 +450,7 @@ boxplot(UB_DM_fix*1000, at = pos_nb[idx], add = T,
 
 
 
-# gamma varies - Lambda grid
+## FDP - bivariate -------------------------------------------------------
 Lambda_grid = c(50,150,200,250,300,500)
 gamma_grid = c(seq(0.001,1,length.out = 100),
                seq(1,150,length.out = 200))
@@ -477,6 +495,14 @@ ptrue_mat = matrix(nrow = Nrep,ncol = M)
 ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
 data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
 Nj_mat = apply(data_mat, 2, tabulate, nbins = M) # M x Nrep
+
+
+pval_UnifTest = apply(data_mat, 2, function(data){
+  n_i = table(data)
+  MultinomialTest(Nj = n_i, M = 200)})
+pval_UnifTest
+summary(pval_UnifTest)
+
 Mmax_plot = M
 xpos = seq(1,Mmax_plot,length.out = 10); xlabs = round(xpos,0)
 ymax = max(Nj_mat/n);ymin = 0
@@ -738,4 +764,66 @@ plot(x = gamma_grid, y = res, type = "b", pch = 16, ylim = c(3.5,15))
 abline(h = 1000/M, lty = 4, col = "red")
 abline(h = EB_WorstUnif[,7], lty = 4, col = "green")
 abline(v = EB_WorstUnif[,5], lty = 1, lwd = 1, col = "skyblue")
+
+
+# WorstUnif - PD fails ------------------------------------------------------------------
+
+sigma = 0
+theta_grid = c(seq(0.1,50,length.out = 500),
+               seq(51,100,length.out = 500))
+UB_PD_list = vector("list", length = length(theta_grid))
+for(hh in seq_along(theta_grid)) {
+  UB_PD_fix = rep(1,Nrep)
+  theta = theta_grid[hh]
+  for(ii in 1:Nrep){
+    Kn = EB_WorstUnif[ii,6]
+    ubPD = exp(compute_log_UBMarkov( Rmax, sigma, theta, Kn, n, alpha ))
+    ubPD = min(ubPD,1)
+    UB_PD_fix[ii] = ubPD
+  }
+  UB_PD_list[[hh]] = UB_PD_fix
+}
+
+res = 1000*sapply(UB_PD_list, mean)
+plot(x = theta_grid, y = res, type = "b", pch = 16, ylim = c(3.5,15))
+abline(h = 1000/M, lty = 4, col = "red")
+abline(h = EB_WorstUnif[,7], lty = 4, col = "green")
+abline(v = EB_WorstUnif[,2], lty = 1, lwd = 1, col = "skyblue")
+
+
+# NegBin - PD OK ----------------------------------------------------------
+
+
+sigma = 0.99
+theta_grid = c(seq(0.1,50,length.out = 500),
+               seq(51,100,length.out = 500))
+UB_PD_list = vector("list", length = length(theta_grid))
+for(hh in seq_along(theta_grid)) {
+  UB_PD_fix = rep(1,Nrep)
+  theta = theta_grid[hh]
+  for(ii in 1:Nrep){
+    Kn = EB_WorstUnif[ii,6]
+    ubPD = exp(compute_log_UBMarkov( Rmax, sigma, theta, Kn, n, alpha ))
+    ubPD = min(ubPD,1)
+    UB_PD_fix[ii] = ubPD
+  }
+  UB_PD_list[[hh]] = UB_PD_fix
+}
+
+res = 1000*sapply(UB_PD_list, mean)
+plot(x = theta_grid, y = res, type = "b", pch = 16, ylim = c(3.5,15))
+abline(h = 1000/M, lty = 4, col = "red")
+abline(h = EB_NegBin[,7], lty = 4, col = "green")
+abline(v = EB_NegBin[,2], lty = 1, lwd = 1, col = "skyblue")
+
+
+
+
+
+
+
+
+
+
+
 

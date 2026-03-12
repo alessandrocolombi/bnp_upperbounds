@@ -1,4 +1,3 @@
-
 # Gen. Dist. (species) ----------------------------------------------------
 sim_zipfs = function(M,s){
   w = sapply(1:M,function(j) j^(-s))
@@ -872,6 +871,35 @@ fk_stable_beta_process <- function(c, sigma, gamma, base_rnd = base_rnd,
 
 
 
+# Test for Uniform distribution -------------------------------------------
+
+MultinomialTest = function(Nj, M=NULL){
+  pval = 1
+  if(!is.null(M)){
+    # If here, the alphabet size is known
+    if(length(Nj) != M ){ # check the size of Nj
+      Nj = c(Nj, rep(0,M-length(Nj)))
+    }
+    pi = rep(1/M, M) # define uniform distribution as reference distribution
+    test = ExactMultinom::multinom.test(Nj,pi, method = "asymptotic") # perform the test
+    pval = ifelse(is.na(test$pvals_as[1]),0,test$pvals_as[1]) # get the p-value
+  }
+  else{
+    Mhat <- suppressWarnings(
+      suppressMessages(
+        {
+          tmp <- capture.output(
+            res <- SpadeR::ChaoSpecies(Nj, datatype = "abundance")
+          )
+          res
+        }
+      )
+    ) 
+    Mhat = round(Mhat$Species_table[4,1])
+    pval = MultinomialTest(Nj,M = Mhat)
+  }
+  pval
+}
 
 # GOF ---------------------------------------------------------------------
 
@@ -1167,6 +1195,225 @@ Hychoice_MCMC_general = function(model, n, Kn,
 
 
 
+# Sim Study - species -----------------------------------------------------
+
+UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
+                  var_prior,Rmax,
+                  alpha, M_max = 200, seed = 121321)
+{
+  #a) Define return object
+  res_names = c("Mmax","Freq","PD","FDP","DirMulti",
+                "sigma","theta",
+                "gamma_FDP","Lambda_FDP",
+                "gamma_DM", "Kn")
+  res = matrix(NA,nrow = 1, ncol = length(res_names))
+  colnames(res) = res_names
+  
+  #b) Freq
+  pain = ub_pain(n = n, Rmax = Rmax, alfa = alpha)
+  pain = min(pain,1)
+  
+  ### Prior definition - MCMC params
+  Niter = 10000
+  
+  ## i) PD hyperparameters
+  a_sigma = 1
+  b_sigma = 1
+  mu_theta = Hychoice_MCMC_general("PD", n, Kn, hy_prior = c(a_sigma,b_sigma) )
+  a_theta = mu_theta*mu_theta/var_prior
+  b_theta = mu_theta/var_prior
+  
+  ## ii) FDP hyperparameters
+  mu_Lambda = Kn 
+  a_Lambda = mu_Lambda*mu_Lambda/var_prior
+  b_Lambda = mu_Lambda/var_prior
+  mu_gamma = 1 #Hychoice_MCMC_general("FDP", n, Kn, hy_prior = c(mu_Lambda) )
+  a_gamma  = mu_gamma*mu_gamma/var_prior
+  b_gamma  = mu_gamma/var_prior
+  
+  ## iii) DirMulti hyperparameters
+  mu_gammaDM = 1
+  a_gammaDM  = mu_gammaDM*mu_gammaDM/var_prior
+  b_gammaDM  = mu_gammaDM/var_prior
+  
+  ### Bayesian UB computation
+  pval = MultinomialTest(Nj = data_obs, M = NULL)
+  runMCMC = ifelse(pval <= 0.05, TRUE, FALSE)
+  runEB = !runMCMC
+  #c) Poisson-Dirichlet (PD)
+  model = "PD"; cat("\n ",model," ... ")
+  ## i) Parameter estimation
+  if(FALSE){
+    cat("MCMC fit \n")
+    init_val = c(0.5,Kn)
+    hy_prior = c(a_sigma,b_sigma,a_theta,b_theta) 
+    Adp_var = c(0.1,0.1)
+    UpdateParam = c(TRUE,TRUE)
+    fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=data_obs,Niter=Niter,
+                              init_val=init_val,hy_prior=hy_prior,Adp_var=Adp_var,UpdateParam=UpdateParam,
+                              M=M,seed = seed, M_max = 500)
+    sigmas = fit$sigma_mcmc
+    thetas = fit$theta_mcmc
+    sigma  = mean(sigmas[(Niter/2):Niter])
+    theta = mean(thetas[(Niter/2):Niter])
+  } else if(TRUE){
+    cat("EB fit \n")
+    start_params <- c(alpha = 0.5, theta = 1)
+    fit <- optim(par = start_params, fn = llik_pyp, 
+                 n = n, Kn = Kn, data_obs = data_obs, # extra parameters
+                 method = "L-BFGS-B",
+                 lower = c(0, -1), upper = c(1-1e-10, Inf)) 
+    sigma = fit$par[1]
+    theta = fit$par[2]
+  } else{
+    stop("Both MCMC and EB are false")
+  }
+  ## ii) Upper bound computation (PD)
+  ubpyp = exp(compute_log_UBMarkov( Rmax, sigma, theta, Kn, n, alpha ))
+  ubpyp = min(ubpyp,1)
+  res[1,6] = sigma
+  res[1,7] = theta
+  
+  #d) Finite Dirichlet Process (FDP)
+  model = "FDP"; cat("\n ",model," ... ")
+  ## i) Parameter estimation
+  if(runMCMC){
+    cat("MCMC fit \n")
+    init_val = c(1,Kn)
+    hy_prior = c(a_gamma,b_gamma,a_Lambda,b_Lambda) 
+    Adp_var = c(0.1,0.1)
+    UpdateParam = c(TRUE,TRUE)
+    fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=data_obs,Niter=Niter,
+                              init_val=init_val,hy_prior=hy_prior,Adp_var=Adp_var,UpdateParam=UpdateParam,
+                              M=M,seed = seed, M_max = 500)
+    gammas = fit$gamma_mcmc
+    Lambdas = fit$Lambda_mcmc
+    gamma = mean(gammas[(Niter/2):Niter])
+    Lambda = mean(Lambdas[(Niter/2):Niter])
+  } else if(runEB){
+    cat("EB fit \n")
+    start_params <- c(gamma = 0.1, Lambda = Kn)
+    fit <- optim(par = start_params, fn = llik_FD, 
+                 n = n, Kn = Kn, data_obs = data_obs, M_max = M_max,# extra parameters
+                 method = "L-BFGS-B",
+                 lower = c(1e-5, 1e-5), upper = c(Inf, Inf)) 
+    gamma = fit$par[1]
+    Lambda = fit$par[2]
+  } else{
+    stop("Both MCMC and EB are false")
+  }
+  res[1,8] = gamma
+  res[1,9] = Lambda
+  ## ii) Upper bound computation (FDP)
+  ubFDP = exp(compute_log_UBMarkov_FD( Rmax, gamma, Lambda, Kn, n, alpha, M_max ))
+  ubFDP = min(ubFDP,1)
+  #e) Dirichlet-Multinomial (DirMulti)
+  model = "DirMulti"; cat("\n ",model," ... ")
+  ## i) Parameter estimation
+  if(runMCMC){
+    cat("MCMC fit \n")
+    init_val = c(1)
+    hy_prior = c(a_gammaDM,b_gammaDM) 
+    Adp_var = c(0.1)
+    UpdateParam = c(TRUE)
+    fit = ParEst_MCMC_generic(model=model,n=n,Kn=Kn,Nj=n_i,Niter=Niter,
+                              init_val=init_val,hy_prior=hy_prior,Adp_var=Adp_var,UpdateParam=UpdateParam,
+                              M=M,seed = seed, M_max = 500)
+    gammas = fit$gamma_mcmc
+    gamma = mean(gammas[(Niter/2):Niter])
+  } else if(runEB){
+    cat("EB fit \n")
+    start_params <- c(gamma = 0.5)
+    fit <- optim(par = start_params, fn = llik_DirMult,
+                 n = n, M = M, data = n_i, # extra parameters
+                 method = "L-BFGS-B",
+                 lower = c(1e-10), upper = c(Inf))
+    gamma = fit$par[1]
+  } else{
+    stop("Both MCMC and EB are false")
+  }
+  res[1,10] = gamma
+  ## ii) Upper bound computation (DirMulti)
+  ubDM = exp(compute_log_UB_DirMulti( Rmax, gamma, M, Kn, n, alpha ))
+  ubDM = min(ubDM,1)
+  #f) Save results
+  res[1,1] = Mmax
+  res[1,2] = pain
+  res[1,3] = ubpyp
+  res[1,4] = ubFDP
+  res[1,5] = ubDM
+  res[1,11] = Kn
+  # Return
+  res
+}
+
+SS_species_run = function(M, n, name, params, var_prior = 10,
+                          alpha = 0.05,Rmax = 100, M_max = 200, 
+                          M_DM = NULL, seed = 121321)
+{
+  source("../../R/Rfunctions.R")
+  Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
+  # From BinomialCIs
+  source("../../../BinomialCIs/R/Rfunctions.R")
+  Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
+  
+  set.seed(seed)
+  ptrue = sim_generic_species(name,M,params)
+  ptrue = sort(ptrue, decreasing = TRUE)
+
+  
+  #a) Generate data
+  data = sample(1:M, size = n, replace = TRUE, prob = ptrue)
+  n_i = tabulate(data, nbins = M)
+  idx_obs = which(n_i > 0)
+  Kn = length(idx_obs)
+  data_obs = n_i[idx_obs]
+  if(Kn == M){
+    Mmax = 0
+  }else{
+    idx_unobs = which(n_i == 0)
+    Mmax = max(ptrue[idx_unobs])
+  }
+  
+  #b) Run analysis
+  UB_fit(n,Kn,n_i,data_obs,Mmax,M,var_prior,Rmax,alpha, M_max, seed)
+
+}
+
+SS_species = function(name,M,n,params,Nrep = 100, 
+                      alpha = 0.05,Rmax = 100, 
+                      M_max = 200, seed0 = 121321,
+                      M_DM = NULL, var_prior = 10,
+                      parallel = TRUE, num_cores = 5)
+{
+  cat("\n","n = ",n," || ","M = ",M,"","\n")
+  set.seed(seed0)
+  seeds = sample(1:999999, size = Nrep)
+  
+  # Sequential case
+  if(!parallel){
+    res_list = lapply(seeds, function(seed) SS_species_run(
+      M=M, n=n, params=params, 
+      alpha=alpha, var_prior=var_prior,
+      Rmax=Rmax, M_max=M_max,
+      M_DM=M_DM,
+      seed=seed, name=name) )
+  }else{
+    ## Parallel case
+    cluster <- makeCluster(num_cores, type = "SOCK")
+    doSNOW::registerDoSNOW(cluster)
+    clusterExport(cluster, list("alpha"), envir = environment())
+    res_list = parLapply( cl = cluster, x = seeds,
+                          fun = SS_species_run,
+                          M=M, n=n, alpha=alpha, name=name, params=params, 
+                          M_DM=M_DM, var_prior=var_prior,
+                          Rmax=Rmax, M_max=M_max )
+    stopCluster(cluster)
+  }
+  
+  res_mat = do.call(rbind,res_list)
+  return(res_mat)
+}
 
 
 
