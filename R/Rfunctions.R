@@ -1238,7 +1238,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   
   ### Bayesian UB computation
   pval = MultinomialTest(Nj = data_obs, M = NULL)
-  runMCMC = ifelse(pval <= 0.05, TRUE, FALSE)
+  runMCMC = ifelse(pval <= 0.05, FALSE, TRUE)
   runEB = !runMCMC
   #c) Poisson-Dirichlet (PD)
   model = "PD"; cat("\n ",model," ... ")

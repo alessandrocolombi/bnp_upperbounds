@@ -198,6 +198,11 @@ points(x = 1:M, y = ptrue, col = "red", pch = 16, type = "b", lwd = 3)
 pval_UnifTest = apply(data_mat, 2, function(data){
   n_i = tabulate(data, nbins = M)
   MultinomialTest(Nj = n_i, M = M)})
+pval_UnifTest
+pval_UnifTest = apply(data_mat, 2, function(data){
+  n_i = table(data)
+  MultinomialTest(Nj = n_i, M = NULL)})
+pval_UnifTest
 
 EB_NegBin = t(apply(data_mat, 2, function(data){
   n_i = tabulate(data, nbins = M)
