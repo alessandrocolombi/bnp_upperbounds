@@ -314,7 +314,7 @@ if(save_img)
   dev.off()
 
 
-# Likelihood plot ---------------------------------------------------------
+# Likelihood plot - DirMulti ---------------------------------------------------------
 
 M = 200
 Nrep = 50
@@ -341,7 +341,7 @@ ParEst_DM = t(apply(data_mat, 2, function(data){
 })) 
 
 round(ParEst_DM,0)
-hh = 318
+hh = 30
 ParEst_DM[hh,]
 n_i = tabulate(data_mat[,hh], M)
 gamma_grid = seq(0.1, 1000, length.out = 5000)
@@ -349,7 +349,7 @@ llik_grid = rep(0,length(gamma_grid))
 for(idx_gamma in seq_along(gamma_grid)){
   llik_grid[idx_gamma] = -llik_DirMult(gamma_grid[idx_gamma], n=n, M=M, data = n_i)
 }
-plot(x = gamma_grid, y = llik_grid)
+plot(x = gamma_grid, y = llik_grid, ylim = quantile(llik_grid, c(0.05,1)))
 abline(h = -ParEst_DM[hh,2], lty = 2, col = "red")
 
 
@@ -416,6 +416,96 @@ for(r in 1:(rmax+1)){
     dev.off()
   
 }
+# Likelihood plot - FDP  ---------------------------------------------------------
+
+M = 200
+Nrep = 50
+n = 500
+ptrue = sim_generic_species(name,M,params)
+ptrue = sort(ptrue, decreasing = TRUE)
+ptrue_mat = matrix(nrow = Nrep,ncol = M)
+ptrue_mat = apply(ptrue_mat, 1, function(x) ptrue)
+data_mat = SimData(n,ptrue_mat, seed) # n x Nrep
+ParEst_FDP = t(apply(data_mat, 2, function(data){
+  n_i = tabulate(data, nbins = M)
+  idx_obs = which(n_i > 0)
+  Kn = length(idx_obs)
+  data_obs = n_i[idx_obs]
+  
+  start_params <- c(gamma = 0.1, Lambda = Kn)
+  fit <- optim(par = start_params, fn = llik_FD, 
+               n = n, Kn = Kn, data_obs = data_obs, M_max = M_max,# extra parameters
+               method = "L-BFGS-B",
+               lower = c(1e-5, 1e-5), upper = c(Inf, Inf)) 
+  c(fit$par[1],fit$par[2],fit$value)
+})) 
+
+
+# Lambda fix - gamma varies
+round(ParEst_FDP,0)
+hh = 33
+ParEst_FDP[hh,]
+n_i = tabulate(data_mat[,hh], M)
+data_obs = n_i[which(n_i > 0)]
+gamma_grid = seq(0.1, 5000, length.out = 5000)
+llik_grid = rep(0,length(gamma_grid))
+for(idx_gamma in seq_along(gamma_grid)){
+  pars = c(gamma_grid[idx_gamma],ParEst_FDP[hh,2])
+  llik_grid[idx_gamma] = -llik_FD(pars, n=n, Kn=length(data_obs), 
+                                  data = data_obs, M_max = 500)
+}
+
+plot(x = gamma_grid, y = llik_grid, ylim = quantile(llik_grid, c(0.05,1)))
+abline(h = -ParEst_FDP[hh,3], lty = 2, col = "red")
+
+
+# Gamma fix - Lambda varies
+round(ParEst_FDP,0)
+hh = 33
+ParEst_FDP[hh,]
+n_i = tabulate(data_mat[,hh], M)
+data_obs = n_i[which(n_i > 0)]
+lambda_grid = seq(150, 250, length.out = 500)
+llik_grid = rep(0,length(lambda_grid))
+for(idx_gamma in seq_along(lambda_grid)){
+  pars = c(ParEst_FDP[hh,1],lambda_grid[idx_gamma])
+  llik_grid[idx_gamma] = -llik_FD(pars, n=n, Kn=length(data_obs), 
+                                  data = data_obs, M_max = 500)
+}
+plot(x = lambda_grid, y = llik_grid)
+abline(h = -ParEst_FDP[hh,3], lty = 2, col = "red")
+
+
+# Joint grid
+round(ParEst_FDP,0)
+hh = 33
+ParEst_FDP[hh,]
+n_i = tabulate(data_mat[,hh], M)
+data_obs = n_i[which(n_i > 0)]
+gamma_grid  = seq(0.1, 1000, length.out = 100)
+lambda_grid = seq(150, 250, length.out = 100)
+llik_joint_mat = matrix(nrow = length(gamma_grid), ncol = length(lambda_grid))
+for(idx_gamma in seq_along(gamma_grid)){
+  for(idx_lambda in seq_along(lambda_grid)){
+    pars = c(gamma_grid[idx_gamma],lambda_grid[idx_lambda])
+    llik_joint_mat[idx_gamma,idx_lambda] = -llik_FD(pars, n=n, Kn=length(data_obs), 
+                                           data = data_obs, M_max = 500)
+  }
+}
+
+par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+
+# 3D surface
+persp(gamma_grid, lambda_grid, llik_joint_mat,
+      theta = 35, phi = 25, expand = 0.7,
+      xlab = "gamma", ylab = "lambda", zlab = "log-lik",
+      main = "3D surface", shade = 0.4, border = NA)
+
+# 2D contour (very useful companion)
+contour(gamma_grid, lambda_grid, llik_joint_mat,
+        nlevels = 20,
+        xlab = "gamma", ylab = "lambda",
+        main = "Contour (same surface)")
 # Estimates - EB ---------------------------------------------------------------
 n = 500
 Mmin_grid = 50; Mmax_grid = 1000

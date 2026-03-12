@@ -64,8 +64,8 @@ img_fld = paste0("img/Species_")
 # Coverages ---------------------------------------------------------------
 
 save_cov = TRUE
-igrid = c(4)
-ii = 4
+igrid = c(3)
+ii = 3
 cov_mat_print = vector("list",length = length(variance_prior_vec)); counter = 1
 for(ii in igrid){
   name = names(experiments)[ii]
@@ -119,8 +119,8 @@ colnames(mat) = c(rep("Freq",4),rep("PD",4),rep("FDP",4),rep("DirMulti",4))
 mat
 
 # Par Est --------------------------------------------------
-ii = 4
-igrid = c(4)
+ii = 3
+igrid = c(3)
 for(ii in igrid){
   
   name = names(experiments)[ii]
@@ -193,9 +193,9 @@ PostEst_gammaDM
 
 
 # ParEst - Specific quantity ----------------------------------------------
-igrid = c(4)
+igrid = c(3)
 variable = c("sigma","theta","gamma_FDP","Lambda_FDP","gamma_DM")
-vv = 5; ii = 4
+vv = 4; ii = 3
 for(ii in igrid){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
@@ -231,8 +231,11 @@ for(ii in igrid){
         Kn = length(idx_obs)
         data_obs = n_i[idx_obs]
         
-        res = matrix(nrow = 1, ncol = 5)
-        colnames(res) = c("sigma-PD","theta-PD","Lambda-FDP","gamma-FDP","gamma-DirMulti")
+        res = matrix(nrow = 1, ncol = 6)
+        colnames(res) = c("sigma-PD","theta-PD",
+                          "Lambda-FDP","gamma-FDP",
+                          "gamma-DirMulti","Kn")
+        res[1,6] = Kn
         #a) PD
         # Param. estimation (PYP)
         start_params <- c(alpha = 0.5, theta = 1)
@@ -271,7 +274,7 @@ for(ii in igrid){
     
     
     # Loop for the different variables of interest
-    vv = 5
+    vv = 4
     for(vv in seq_along(variable)){
       xx_list_mat = vector("list", length(variance_prior_vec))
       for(hh in seq_along(variance_prior_vec)){
@@ -342,8 +345,8 @@ for(hh in seq_along(variance_prior_vec)){
 
 # CI length ------------------------------------------------
 
-ii = 4
-igrid = c(4)
+ii = 3
+igrid = c(3)
 for(ii in igrid){
   
   name = names(experiments)[ii]
@@ -378,7 +381,7 @@ for(ii in igrid){
       xlabs = as.character(Mgrid)
       
       
-      img_name = paste0(img_fld,name,"_MCMC_","_v_",var_prior,"_nfix_",trim_params,".pdf")
+      img_name = paste0(img_fld,name,"_MCMC_II","_v_",var_prior,"_nfix_",trim_params,".pdf")
       if(save_img)
         pdf(img_name, width = width, height = height)
       par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )

@@ -188,14 +188,14 @@ mycol2 = c("black","lightblue")
 lgd_names = c("Freq","PD","FDP","Dir-Multi")
 
 # Options -----------------------------------------------------------------
-params_zipfs = list(0.9,1.02,2)
-params_geom = list(0.85,0.9,0.95)
-params_unif = list(NA)
-params_negbin = list(c(1,0.003)) #list(c(1,0.003),c(5,0.003),c(1,0.01))
-experiments = list("Zipfs" = params_zipfs,
-                   "Geom" = params_geom,
-                   "Uniform" = params_unif,
-                   "NegBin" = params_negbin)
+params_zipfs  = list(0.9,1.02,2)
+params_geom   = list(0.85,0.9,0.95)
+params_unif   = list(NA)
+params_negbin = list(c(1,0.003),c(5,0.003),c(1,0.01))
+experiments   = list("Zipfs"   = params_zipfs,
+                     "Geom"    = params_geom,
+                     "Uniform" = params_unif,
+                     "NegBin"  = params_negbin)
 
 alpha <- alfa <- 0.05
 num_cores = 33 # <---
@@ -212,10 +212,10 @@ set.seed(seed0)
 seeds = sample(1:999999, size = Nexp)
 
 save_exp = TRUE # <---
-save_name_base = paste0("save/Species_MCMC_II_") 
+save_name_base = paste0("save/Species_MCMC_III_") 
 img_fld = paste0("img/") 
 # n fix -----------------------------------------------------------------
-igrid = c(3)
+igrid = c(1:4)
 ii = 3
 for(ii in igrid){
   
