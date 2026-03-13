@@ -103,12 +103,12 @@ save_exp = TRUE # <---
 save_name_base = paste0("save/SS_species_Mfix_") 
 img_fld = paste0("img/") 
 igrid = c(1:4)
-ii = 3
+ii = 1
 for(ii in igrid){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 1
+  jj = 4
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
