@@ -102,7 +102,7 @@ seeds = sample(1:999999, size = Nexp)
 save_exp = TRUE # <---
 save_name_base = paste0("save/SS_species_Mfix_") 
 img_fld = paste0("img/") 
-igrid = c(1:4)
+igrid = c(3:4)
 ii = 1
 for(ii in igrid){
   

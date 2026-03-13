@@ -329,19 +329,7 @@ for(ii in igrid){
 }
 
 
-# Mstar FDP ---------------------------------------------------------------
 
-gammaFDP_list_mat = vector("list", length(variance_prior_vec))
-LambdaFDP_list_mat = vector("list", length(variance_prior_vec))
-for(hh in seq_along(variance_prior_vec)){
-  var_prior = variance_prior_vec[hh]
-  filename = paste0(save_name_base,name,"_v_",var_prior,"_nfix_",trim_params,".Rdat")
-  load(filename)
-  xx_list = lapply(ExpRes_list, function(x) x[,3+5])
-  gammaFDP_list_mat[[hh]] = do.call(cbind, xx_list) # Nrep x LMgrid
-  xx_list = lapply(ExpRes_list, function(x) x[,4+5])
-  LambdaFDP_list_mat[[hh]] = do.call(cbind, xx_list) # Nrep x LMgrid
-}
 
 # CI length ------------------------------------------------
 

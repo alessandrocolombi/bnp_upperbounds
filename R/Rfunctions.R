@@ -1237,7 +1237,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   b_gammaDM  = mu_gammaDM/var_prior
   
   ### Bayesian UB computation
-  pval = MultinomialTest(Nj = data_obs, M = NULL)
+  pval <- tryCatch( MultinomialTest(Nj = data_obs, M = NULL), error = function(e) 1 )
   runMCMC = ifelse(pval <= 0.05, FALSE, TRUE)
   runEB = !runMCMC
   #c) Poisson-Dirichlet (PD)
