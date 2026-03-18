@@ -53,44 +53,44 @@ var_prior = 10
 parallel = TRUE
 
 # n fix -----------------------------------------------------------------
-n = 500
-Mmin_grid = 50; Mmax_grid = 1000
-Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
-Nexp = length(Mgrid)
-seeds = sample(1:999999, size = Nexp)
-
-save_exp = TRUE # <---
-save_name_base = paste0("save/SS_species_nfixMAP_")
-img_fld = paste0("img/")
-igrid = c(1:4)
-ii = 4
-for(ii in igrid){
-
-  name = names(experiments)[ii]
-  Ncases = length(experiments[[ii]])
-  jj = 1
-  for(jj in 1:Ncases){
-    cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
-    params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
-
-    run_obj <- Map(function(m, s) list(M = m, seed = s),Mgrid, seeds)
-
-    ExpRes_list = lapply( run_obj,
-                          function(x){
-                            SS_species(
-                              name=name, params=params, M=x$M, n=n,
-                              var_prior=var_prior,Nrep=Nrep,
-                              alpha=alpha, Rmax=Rmax, M_DM=NULL,
-                              parallel = parallel,M_max=M_max,seed0=x$seed)}  )
-    filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
-    if(save_exp)
-      save(ExpRes_list,file = filename)
-  }
-}
-
+# n = 500
+# Mmin_grid = 50; Mmax_grid = 1000
+# Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
+# Nexp = length(Mgrid)
+# seeds = sample(1:999999, size = Nexp)
+# 
+# save_exp = TRUE # <---
+# save_name_base = paste0("save/SS_species_nfixMAP_")
+# img_fld = paste0("img/")
+# igrid = c(1:4)
+# ii = 4
+# for(ii in igrid){
+# 
+#   name = names(experiments)[ii]
+#   Ncases = length(experiments[[ii]])
+#   jj = 1
+#   for(jj in 1:Ncases){
+#     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
+#     params = experiments[[ii]][[jj]]
+#     trim_params = sapply(params, get_first3digits, 4)
+#     if(length(trim_params)>1)
+#       trim_params = paste0(trim_params[1],"_",trim_params[2])
+# 
+#     run_obj <- Map(function(m, s) list(M = m, seed = s),Mgrid, seeds)
+# 
+#     ExpRes_list = lapply( run_obj,
+#                           function(x){
+#                             SS_species(
+#                               name=name, params=params, M=x$M, n=n,
+#                               var_prior=var_prior,Nrep=Nrep,
+#                               alpha=alpha, Rmax=Rmax, M_DM=NULL,
+#                               parallel = parallel,M_max=M_max,seed0=x$seed)}  )
+#     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
+#     if(save_exp)
+#       save(ExpRes_list,file = filename)
+#   }
+# }
+# 
 
 # M fix -----------------------------------------------------------------
 M = 1000
@@ -102,7 +102,7 @@ seeds = sample(1:999999, size = Nexp)
 save_exp = TRUE # <---
 save_name_base = paste0("save/SS_species_MfixMAP_") 
 img_fld = paste0("img/") 
-igrid = c(3:4)
+igrid = c(1:2)
 ii = 1
 for(ii in igrid){
   
