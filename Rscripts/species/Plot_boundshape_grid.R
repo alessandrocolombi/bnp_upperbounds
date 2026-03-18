@@ -23,7 +23,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 # Plot options ------------------------------------------------------------------
 save_img = FALSE
-width = 12; height = 8
+width = 12; height = 6
 cex.labels <- cex.lab <- 1.5
 cex.axis <- 1.5
 cex.legend <- 1.5
@@ -34,7 +34,6 @@ lgd_names = c("Oracle","Freq","PD","FDP","Dir-Multi")
 
 
 # Options -----------------------------------------------------------------
-M = 200
 n = 500
 Rmax = 100
 Nrep = 200
@@ -42,6 +41,7 @@ alpha <- alfa <- 0.05
 seed = 42
 M_max = 200
 
+M = 200
 Kn = 100
 ## DM univariate  -------------------------------------------------------
 gamma_grid = c(seq(0.001,1,length.out = 100),
@@ -55,10 +55,14 @@ for(hh in seq_along(gamma_grid)) {
 }
 U_DM_grid = U_DM_grid*1000
 
+if(save_img)
+  pdf("img/UB_shape_DM_Unif.pdf", width = width, height = height)
 par( mfrow = c(1,1), mar = c(3.5,3.5,1,1), mgp=c(2,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-plot(x = gamma_grid, y = U_DM_grid, type = "b", 
+plot(x = gamma_grid, y = U_DM_grid, type = "l", lwd = 3, xlim = c(0,150),
      pch = 16, ylab = "DirMulti", ylim = c(2,15), xlab = "gamma")
-
+abline(h = 1000/M, lty = 3, lwd = 3, col = "red")
+if(save_img)
+  dev.off()
 
 ## FDP - bivariate -------------------------------------------------------
 Kn = 200
@@ -78,13 +82,16 @@ for(gg in seq_along(Lambda_grid)){
 }
 res = lapply(res, function(x) x*1000)
 
-par( mfrow = c(2,3), mar = c(3.5,3.5,1,1), mgp=c(2,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-for(gg in seq_along(Lambda_grid)){
-  plot(x = gamma_grid, y = res[[gg]], type = "b", 
+if(save_img)
+  pdf("img/UB_shape_FDP.pdf", width = width*3, height = height)
+par( mfrow = c(1,3), mar = c(3.5,3.5,1,1), mgp=c(2,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+for(gg in c(1,3,6)){
+  plot(x = gamma_grid, y = res[[gg]], type = "l", lwd = 3 ,
        pch = 16, ylab = paste0("FDP - ",Lambda_grid[gg]), ylim = c(2,12.5), 
        xlab = "gamma")
 }
-
+if(save_img)
+  dev.off()
 
 ## DP - bivariate -------------------------------------------------------
 Kn = 70 # -> la forma non cambia ma il massimo si, in funzione di Kn
@@ -104,9 +111,13 @@ for(gg in seq_along(sigma_grid)){
 }
 res = lapply(res, function(x) x*1000)
 
-par( mfrow = c(2,3), mar = c(3.5,3.5,1,1), mgp=c(2,1,0), bty = "l", las = 1, cex.lab = cex.lab )
-for(gg in seq_along(sigma_grid)){
-  plot(x = theta_grid, y = res[[gg]], type = "b", 
+if(save_img)
+  pdf("img/UB_shape_PD.pdf", width = 3*width, height = height)
+par( mfrow = c(1,3), mar = c(3.5,3.5,1,1), mgp=c(2,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+for(gg in c(1,3,5)){
+  plot(x = theta_grid, y = res[[gg]], type = "l", lwd = 3, 
        pch = 16, ylab = paste0("PD - ",sigma_grid[gg]), ylim = c(2,12.5), 
        xlab = "theta")
 }
+if(save_img)
+  dev.off()

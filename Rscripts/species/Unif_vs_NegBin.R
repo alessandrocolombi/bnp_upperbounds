@@ -698,8 +698,8 @@ summary(EB_WorstUnif[,11])
 # NegBin - DM fails ------------------------------------------------------------------
 
 
-gamma_grid = c(seq(0.001,1,length.out = 500),
-               seq(1,3000,length.out = 1000))
+gamma_grid = c(seq(0.001,100,length.out = 100),
+               seq(100,150,length.out = 100))
 UB_DM_list = vector("list", length = length(gamma_grid))
 for(hh in seq_along(gamma_grid)) {
   UB_DM_fix = rep(1,Nrep)
@@ -717,7 +717,7 @@ res = 1000*sapply(UB_DM_list, mean)
 plot(x = gamma_grid, y = res, type = "b", pch = 16)
 abline(h = 1000/M, lty = 4, col = "red")
 abline(h = EB_NegBin[,7], lty = 4, col = "green")
-abline(v = EB_NegBin[,5], lty = 1, lwd = 1, col = "skyblue")
+# abline(v = EB_NegBin[,5], lty = 1, lwd = 1, col = "skyblue")
 
 
 # Unif - DM Ok ------------------------------------------------------------------

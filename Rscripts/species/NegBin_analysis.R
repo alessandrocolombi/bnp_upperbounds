@@ -349,10 +349,16 @@ llik_grid = rep(0,length(gamma_grid))
 for(idx_gamma in seq_along(gamma_grid)){
   llik_grid[idx_gamma] = -llik_DirMult(gamma_grid[idx_gamma], n=n, M=M, data = n_i)
 }
-plot(x = gamma_grid, y = llik_grid, ylim = quantile(llik_grid, c(0.05,1)))
+
+if(save_img)
+  pdf("img/NegBin_llik_DM.pdf", width = width, height = height)
+par( mfrow = c(1,1), mar = c(5.5,5.5,1,1), mgp=c(4,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+plot(x = gamma_grid, y = llik_grid, 
+     ylim = quantile(llik_grid, c(0.02,1)),
+     type = "l", lwd = 3, ylab = "llik", xlab = "gamma")
 abline(h = -ParEst_DM[hh,2], lty = 2, col = "red")
-
-
+if(save_img)
+  dev.off()
 
 # Comparison
 rmax = 5

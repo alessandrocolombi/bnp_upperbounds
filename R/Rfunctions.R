@@ -131,6 +131,50 @@ llik_DirMult = function(x, n, M, data){
 } 
 
 
+# MAP objective functions -------------------------------------------------
+
+lpost_pyp <- function(x, n, Kn, data_obs, hy) {
+  alpha <- x[1]
+  theta <- x[2]
+  a_sigma <- hy[1]; b_sigma <- hy[2] 
+  a_theta <- hy[3]; b_theta <- hy[4] 
+  log_prior_sigma = (a_sigma - 1)*log(alpha) + (b_sigma-1)*log(1-alpha)
+  log_prior_theta = (a_theta - 1)*log(theta) - b_theta*theta
+  llik = log_eppfPYP( n, Kn, data_obs, alpha, theta )
+  
+  if( alpha < 1e-10 || alpha > (1-1e-10) || theta < 1e-10){
+    return( +100000000 )
+  } else{
+    return( -(llik+log_prior_sigma+log_prior_theta) )
+  }
+}
+lpost_FD <- function(x, n, Kn, data_obs, hy, M_max) {
+  gamma <- x[1]
+  Lambda <- x[2]
+  a_gamma  <- hy[1]; b_gamma  <- hy[2] 
+  a_Lambda <- hy[3]; b_Lambda <- hy[4] 
+  log_prior_gamma  = (a_gamma - 1)*log(gamma)   - b_gamma*gamma
+  log_prior_Lambda = (a_Lambda - 1)*log(Lambda) - b_Lambda*Lambda
+  llik = log_eppfFD(n,Kn,data_obs,gamma,Lambda,M_max)
+  if( gamma < 1e-10 || Lambda < 1e-10){
+    return( +100000000 )
+  } else{
+    return( -(llik+log_prior_gamma+log_prior_Lambda) )
+  }
+}
+lpost_DirMult <- function(x, n, M, data, hy){
+  gamma <- x[1]
+  a_gamma  <- hy[1]; b_gamma  <- hy[2] 
+  log_prior_gamma  = (a_gamma - 1)*log(gamma)   - b_gamma*gamma
+  llik = log_DirMulti(n,M,data,gamma)
+  if( gamma < 1e-10 ){
+    return( +100000000 )
+  } else{
+    return( -(llik+log_prior_gamma) )
+  }
+} 
+
+
 # Objective functions (features) -----------------------------------------------------
 llik_PP <- function(x,n, Kn, data_obs, gamma) {
   alpha <- x[1]
@@ -1198,8 +1242,9 @@ Hychoice_MCMC_general = function(model, n, Kn,
 # Sim Study - species -----------------------------------------------------
 
 UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
-                  var_prior,Rmax,
-                  alpha, M_max = 200, seed = 121321)
+                  var_prior,Rmax,alpha, 
+                  useMAP = TRUE, 
+                  M_max = 200, seed = 121321)
 {
   #a) Define return object
   res_names = c("Mmax","Freq","PD","FDP","DirMulti",
@@ -1213,7 +1258,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   pain = ub_pain(n = n, Rmax = Rmax, alfa = alpha)
   pain = min(pain,1)
   
-  ### Prior definition - MCMC params
+  ### Prior definition - MAP/MCMC params
   Niter = 10000
   
   ## i) PD hyperparameters
@@ -1222,6 +1267,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   mu_theta = Hychoice_MCMC_general("PD", n, Kn, hy_prior = c(a_sigma,b_sigma) )
   a_theta = mu_theta*mu_theta/var_prior
   b_theta = mu_theta/var_prior
+  hy_pyp = c(a_sigma,b_sigma, a_theta, b_theta)
   
   ## ii) FDP hyperparameters
   mu_Lambda = Kn 
@@ -1230,16 +1276,22 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   mu_gamma = 1 #Hychoice_MCMC_general("FDP", n, Kn, hy_prior = c(mu_Lambda) )
   a_gamma  = mu_gamma*mu_gamma/var_prior
   b_gamma  = mu_gamma/var_prior
+  hy_FDP = c(a_gamma,b_gamma, a_Lambda, b_Lambda)
   
   ## iii) DirMulti hyperparameters
   mu_gammaDM = 1
   a_gammaDM  = mu_gammaDM*mu_gammaDM/var_prior
   b_gammaDM  = mu_gammaDM/var_prior
+  hy_DM = c(a_gammaDM,a_gammaDM)
   
   ### Bayesian UB computation
   pval <- tryCatch( MultinomialTest(Nj = data_obs, M = NULL), error = function(e) 1 )
-  runMCMC = ifelse(pval <= 0.05, FALSE, TRUE)
-  runEB = !runMCMC
+  runEB = ifelse(pval <= 0.05, TRUE, FALSE)
+  runMAP = !runEB
+  if(useMAP == FALSE)
+    runMAP = FALSE
+  runMCMC = !(runEB ||  runMAP)
+  
   #c) Poisson-Dirichlet (PD)
   model = "PD"; cat("\n ",model," ... ")
   ## i) Parameter estimation
@@ -1256,6 +1308,15 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
     thetas = fit$theta_mcmc
     sigma  = mean(sigmas[(Niter/2):Niter])
     theta = mean(thetas[(Niter/2):Niter])
+  } else if(FALSE){
+    cat("MAP fit \n")
+    start_params <- c(alpha = 0.5, theta = 1)
+    fit <- optim(par = start_params, fn = lpost_pyp, 
+                 n = n, Kn = Kn, data_obs = data_obs, hy = hy_pyp, # extra parameters
+                 method = "L-BFGS-B",
+                 lower = c(0, -1), upper = c(1-1e-10, Inf)) 
+    sigma = fit$par[1]
+    theta = fit$par[2]
   } else if(TRUE){
     cat("EB fit \n")
     start_params <- c(alpha = 0.5, theta = 1)
@@ -1265,8 +1326,8 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
                  lower = c(0, -1), upper = c(1-1e-10, Inf)) 
     sigma = fit$par[1]
     theta = fit$par[2]
-  } else{
-    stop("Both MCMC and EB are false")
+  } else {
+    stop("Both MCMC, MAP and EB are false")
   }
   ## ii) Upper bound computation (PD)
   ubpyp = exp(compute_log_UBMarkov( Rmax, sigma, theta, Kn, n, alpha ))
@@ -1290,6 +1351,15 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
     Lambdas = fit$Lambda_mcmc
     gamma = mean(gammas[(Niter/2):Niter])
     Lambda = mean(Lambdas[(Niter/2):Niter])
+  } else if(runMAP){
+    cat("MAP fit ","\n")
+    start_params <- c(gamma = 0.1, Lambda = Kn)
+    fit <- optim(par = start_params, fn = lpost_FD, 
+                 n = n, Kn = Kn, data_obs = data_obs, M_max = M_max, hy = hy_FDP, # extra parameters
+                 method = "L-BFGS-B",
+                 lower = c(1e-5, 1e-5), upper = c(Inf, Inf)) 
+    gamma = fit$par[1]
+    Lambda = fit$par[2]
   } else if(runEB){
     cat("EB fit \n")
     start_params <- c(gamma = 0.1, Lambda = Kn)
@@ -1321,6 +1391,14 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
                               M=M,seed = seed, M_max = 500)
     gammas = fit$gamma_mcmc
     gamma = mean(gammas[(Niter/2):Niter])
+  } else if(runMAP){
+    cat("MAP fit \n")
+    start_params <- c(gamma = 0.5)
+    fit <- optim(par = start_params, fn = lpost_DirMult,
+                 n = n, M = M, data = n_i, hy = hy_DM, # extra parameters
+                 method = "L-BFGS-B",
+                 lower = c(1e-10), upper = c(Inf))
+    gamma = fit$par[1]
   } else if(runEB){
     cat("EB fit \n")
     start_params <- c(gamma = 0.5)
@@ -1329,7 +1407,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
                  method = "L-BFGS-B",
                  lower = c(1e-10), upper = c(Inf))
     gamma = fit$par[1]
-  } else{
+  }else{
     stop("Both MCMC and EB are false")
   }
   res[1,10] = gamma
@@ -1376,7 +1454,9 @@ SS_species_run = function(M, n, name, params, var_prior = 10,
   }
   
   #b) Run analysis
-  UB_fit(n,Kn,n_i,data_obs,Mmax,M,var_prior,Rmax,alpha, M_max, seed)
+  UB_fit(n=n,Kn=Kn,n_i=n_i,data_obs=data_obs,
+         Mmax=Mmax,M=M,var_prior=var_prior,Rmax=Rmax,
+         alpha=alpha,useMAP = TRUE,M_max=M_max,seed=seed)
 
 }
 
