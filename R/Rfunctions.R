@@ -253,7 +253,6 @@ SRabu_grid_multiple_run <- function(eps, data, nstart, Mguess, var_prior, seed0,
   suppressWarnings(suppressPackageStartupMessages(library(parallel)))
   suppressWarnings(suppressPackageStartupMessages(library(doSNOW)))
   suppressWarnings(suppressPackageStartupMessages(library(progress)))
-  suppressWarnings(suppressPackageStartupMessages(library(VGAM)))
   source("../../R/Rfunctions.R")
   Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
   
