@@ -246,7 +246,7 @@ sim_ghilo_features = function(M){
 }
 
 # Mmax-based stopping rules -----------------------------------------------
-SRabu_grid_multiple_run <- function(eps, data, nstart, seed0, Nrep, alpha, M_max)
+SRabu_grid_multiple_run <- function(eps, data, nstart, Mguess, var_prior, seed0, Nrep, alpha, M_max)
 {
   ## Functions
   suppressWarnings(suppressPackageStartupMessages(library(tibble)))
@@ -260,17 +260,17 @@ SRabu_grid_multiple_run <- function(eps, data, nstart, seed0, Nrep, alpha, M_max
   
   set.seed(seed0)
   seeds = sample(1:999999, size = Nrep)
-  res = matrix(nrow = Nrep, ncol = 3)
-  colnames(res) = c("FD","PYP","Freq")
+  res = matrix(nrow = Nrep, ncol = 4)
+  colnames(res) = c("FD","PYP","Freq","DirMulti")
   
   for(ii in 1:Nrep){
     seed = seeds[ii]
-    res[ii,] = SRabu_grid_single_run(eps, data, nstart, seed, alpha, M_max)
+    res[ii,] = SRabu_grid_single_run(eps, data, nstart, Mguess, var_prior, seed, alpha, M_max)
   }
   return(res)
 }
 
-SRabu_grid_single_run <- function(eps, data, nstart, seed, alpha, M_max)
+SRabu_grid_single_run <- function(eps, data, nstart, Mguess, var_prior, seed, alpha, M_max)
 {
   set.seed(seed) # set seed
   RmaxFD = 50; Rmax = 100
@@ -284,15 +284,17 @@ SRabu_grid_single_run <- function(eps, data, nstart, seed, alpha, M_max)
   
   # Stopping flags and outputs
   stopped_FD   <- FALSE
+  stopped_DM   <- FALSE
   stopped_PYP  <- FALSE
   stopped_Freq <- FALSE
   Nstop_FD     <- NA_integer_
+  Nstop_DM     <- NA_integer_
   Nstop_PYP    <- NA_integer_
   Nstop_Freq   <- NA_integer_
   
-  ## ------------------------------------------------------------
+  ### 
   ## Run loop up to n_max = n
-  ## ------------------------------------------------------------
+  ###
   n_max = n
   ni = 2
   for(ni in nstart:(n_max-1)) {
@@ -300,7 +302,7 @@ SRabu_grid_single_run <- function(eps, data, nstart, seed, alpha, M_max)
     remaining <- n_max - ni
     if (remaining <= 0L) break
     
-    ## ---- Observed abundance vector (true + error species) ----
+    ### Observed abundance vector (true + error species) 
     idx_species_i = ordered_idx[1:ni] # select obs. up to time ni
     data_i = data[idx_species_i] 
     Nj_i = table(data_i) # compute frequencies
@@ -308,53 +310,75 @@ SRabu_grid_single_run <- function(eps, data, nstart, seed, alpha, M_max)
     Kobs_i = length(which(Nj_i > 0))
     if( Kobs_i == 0L) next   # nothing observed yet
     
-    ## ---- 5.1 FD (on observed data) ----
+    ### Compute all UB simultaneously 
+    # (n_i,Mmax,M) are not known
+    n_i_guess = c(Nj_i,rep(0,Mguess-Kobs_i))
+    UB_all = UB_fit(n=ni, Kn=Kobs_i, n_i=n_i_guess,
+                    data_obs=Nj_i,Mmax=NA,M=Mguess,
+                    var_prior=var_prior,Rmax=Rmax,alpha=alpha, 
+                    useMAP=TRUE,M_max=500,seed=seed)
+    
+    ### 5.1 FD (on observed data) 
     if (!stopped_FD) {
-      # Param. estimation (FD)
-      start_params <- c(gamma = 0.1, Lambda = Kobs_i)
-      fit <- optim(par = start_params, fn = llik_FD,
-                   n = sum(Nj_i), Kn = Kobs_i, data_obs = Nj_i, M_max = M_max,# extra parameters
-                   method = "L-BFGS-B",
-                   lower = c(1e-5, 1e-5), upper = c(Inf, Inf))
-      gamma_mle = fit$par[1]
-      Lambda_mle = fit$par[2]
-      if( any(is.na(fit$par)) || any(fit$par < 0) ){
+      # # Param. estimation (FD)
+      # start_params <- c(gamma = 0.1, Lambda = Kobs_i)
+      # fit <- optim(par = start_params, fn = llik_FD,
+      #              n = sum(Nj_i), Kn = Kobs_i, data_obs = Nj_i, M_max = M_max,# extra parameters
+      #              method = "L-BFGS-B",
+      #              lower = c(1e-5, 1e-5), upper = c(Inf, Inf))
+      # gamma_mle = fit$par[1]
+      # Lambda_mle = fit$par[2]
+      # if( any(is.na(fit$par)) || any(fit$par < 0) ){
+      #   U_FD = 1
+      # }else{
+      #   U_FD <- exp(compute_log_UBMarkov_FD( RmaxFD, gamma_mle, Lambda_mle, Kobs_i, sum(Nj_i), alpha, M_max ))
+      #   # U_FD = 1
+      # }
+      par_FDP = UB_all[1,c(8,9)]
+      if( any(is.na(par_FDP)) || any(par_FDP < 0) ){
         U_FD = 1
       }else{
-        U_FD <- exp(compute_log_UBMarkov_FD( RmaxFD, gamma_mle, Lambda_mle, Kobs_i, sum(Nj_i), alpha, M_max ))
-        # U_FD = 1
+        U_FD <- UB_all[1,4]
       }
       U_FD <- min(1,U_FD)
       if (!is.na(U_FD) && U_FD < eps) {
         stopped_FD <- TRUE
         Nstop_FD   <- ni
       }
-      # stopped_FD = TRUE
     }
-    
-    ## ---- 5.2 PYP (on observed data) ----
+    ### 5.2 PYP (on observed data) 
     if (!stopped_PYP) {
-      start_params <- c(alpha = 0.1, theta = 1)
-      fit <- optim(par = start_params, fn = llik_pyp,
-                   n = sum(Nj_i), Kn = Kobs_i, data_obs = Nj_i, # extra parameters
-                   method = "L-BFGS-B",
-                   lower = c(0, -1), upper = c(1-1e-10, Inf))
-      alpha_mle = fit$par[1]
-      theta_mle = fit$par[2]
-      if( any(is.na(fit$par)) || any(fit$par < 0) ){
+      # start_params <- c(alpha = 0.1, theta = 1)
+      # fit <- optim(par = start_params, fn = llik_pyp,
+      #              n = sum(Nj_i), Kn = Kobs_i, data_obs = Nj_i, # extra parameters
+      #              method = "L-BFGS-B",
+      #              lower = c(0, -1), upper = c(1-1e-10, Inf))
+      # alpha_mle = fit$par[1]
+      # theta_mle = fit$par[2]
+      # if( any(is.na(fit$par)) || any(fit$par < 0) ){
+      #   U_PYP = 1
+      # }else{
+      #   U_PYP <- exp(compute_log_UBMarkov( Rmax, alpha_mle, theta_mle, Kobs_i, sum(Nj_i), alpha ))
+      # }
+      # U_PYP <- min(1,U_PYP)
+      # if (!is.na(U_PYP) && U_PYP <= eps) {
+      #   stopped_PYP <- TRUE
+      #   Nstop_PYP   <- ni
+      # }
+      # # stopped_PYP = TRUE
+      par_PD = UB_all[1,c(6,7)]
+      if( any(is.na(par_PD)) || any(par_PD < 0) ){
         U_PYP = 1
       }else{
-        U_PYP <- exp(compute_log_UBMarkov( Rmax, alpha_mle, theta_mle, Kobs_i, sum(Nj_i), alpha ))
+        U_PYP <- UB_all[1,3]
       }
       U_PYP <- min(1,U_PYP)
-      if (!is.na(U_PYP) && U_PYP <= eps) {
-        stopped_PYP <- TRUE
-        Nstop_PYP   <- ni
+      if (!is.na(U_PYP) && U_PYP < eps) {
+          stopped_PYP <- TRUE
+          Nstop_PYP   <- ni
       }
-      # stopped_PYP = TRUE
     }
-    
-    ## ---- 5.3 Freq (on observed data) ----
+    ### 5.3 Freq (on observed data) 
     if (!stopped_Freq) {
       U_Freq <- ub_pain(n = sum(Nj_i), Rmax = Rmax, alfa = alpha)
       U_Freq <- min(1,U_Freq)
@@ -363,14 +387,27 @@ SRabu_grid_single_run <- function(eps, data, nstart, seed, alpha, M_max)
         Nstop_Freq   <- ni
       }
     }
-    
+    ### 5.4 DirMulti (on observed data) 
+    if (!stopped_DM) {
+      par_DM = c(UB_all[1,10])
+      if( any(is.na(par_DM)) || any(par_DM < 0) ){
+        U_DM = 1
+      }else{
+        U_DM <- UB_all[1,5]
+      }
+      U_DM <- min(1,U_DM)
+      if (!is.na(U_DM) && U_DM < eps) {
+        stopped_DM <- TRUE
+        Nstop_DM   <- ni
+      }
+    }
     # Early exit if all four rules have stopped
-    if (stopped_FD && stopped_PYP && stopped_Freq) break
+    if (stopped_FD && stopped_PYP && stopped_Freq && stopped_DM) break
   }
   
-  ## ------------------------------------------------------------
+  ###
   ## Post-loop: handle rules that *never* stopped by n_max
-  ## ------------------------------------------------------------
+  ###
   if (!stopped_FD) {
     Nstop_FD <- n_max
   }
@@ -380,20 +417,24 @@ SRabu_grid_single_run <- function(eps, data, nstart, seed, alpha, M_max)
   if (!stopped_Freq) {
     Nstop_Freq <- n_max
   }
+  if (!stopped_DM) {
+    Nstop_DM <- n_max
+  }
   
-  return(c(Nstop_FD,Nstop_PYP,Nstop_Freq))
+  return(c(Nstop_FD,Nstop_PYP,Nstop_Freq,Nstop_DM))
 }
 
 
 SRabu_grid = function( eps_grid, data, nstart,
+                       Mguess, var_prior,
                        Nrep, num_cores, seed0,
                        alpha = 0.05, M_max = 200)
 {
   Lgrid = length(eps_grid) # grid length
   res_list = vector("list",Lgrid)
   res_list = lapply(res_list, function(x) {
-    y = matrix(nrow = Nrep, ncol = 3)
-    colnames(y) = c("FD","PYP","Freq")
+    y = matrix(nrow = Nrep, ncol = 4)
+    colnames(y) = c("FD","PYP","Freq","DirMulti")
     y
   }  )
   
@@ -406,6 +447,7 @@ SRabu_grid = function( eps_grid, data, nstart,
   res_list = parLapply( cl = cluster, x = eps_grid,
                         fun = SRabu_grid_multiple_run,
                         data = data, nstart = nstart,
+                        Mguess = Mguess, var_prior = var_prior,
                         alpha = alpha, M_max = M_max,
                         seed0 = seed0, Nrep = Nrep)
   stopCluster(cluster)
@@ -458,9 +500,9 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
   stopped_3IBP <- stopped_MixPois <- stopped_MixBin <- stopped_FreqBdd <- stopped_FreqUbd <- FALSE
   Nstop_3IBP <- Nstop_MixPois <- Nstop_MixBin <- Nstop_FreqBdd <- Nstop_FreqUbd <- NA_integer_
   
-  ## ------------------------------------------------------------
+  ###
   ## Run loop up to n_max = n
-  ## ------------------------------------------------------------
+  ###
   n_max = n
   ni = 2
   for(ni in nstart:(n_max-1)) {
@@ -468,7 +510,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
     remaining <- n_max - ni
     if (remaining <= 0L) break
     
-    ## ---- Observed vector (true + error species) ----
+    ### Observed vector (true + error species) 
     idx_species_i = ordered_idx[1:ni] # select obs. up to time ni
     data_i = data[idx_species_i,] 
     Nj_i = colSums(data_i) # compute frequencies
@@ -476,7 +518,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
     Kobs_i = length(which(Nj_i > 0))
     if( Kobs_i == 0L) next   # nothing observed yet
     
-    ## ---- 5.1 3IBP (on observed data) ----
+    ### 5.1 3IBP (on observed data) 
     if (!stopped_3IBP) {
       # Param. estimation (3 params PP)
       start_params <- c(alpha = 0.1, gamma= 1, u = 1)
@@ -504,7 +546,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
       # stopped_3IBP = TRUE
     }
     
-    ## ---- 5.2 MixPois (on observed data) ----
+    ### 5.2 MixPois (on observed data) 
     if (!stopped_MixPois) {
       # Param. estimation (3 params PP)
       start_params <- c(alpha = 0.1, u = 1, mu_gamma = 1)
@@ -535,7 +577,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
       # stopped_MixPois = TRUE
     }
     
-    ## ---- 5.3 MixBin (on observed data) ----
+    ### 5.3 MixBin (on observed data) 
     if (!stopped_MixBin) {
       # Param. estimation (3 params PP)
       start_params <- c(a = 1, b = 1, mu_nb = 1)
@@ -565,7 +607,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
       # stopped_MixBin = TRUE
     }
     
-    ## ---- 5.4 Freq.Bdd (on observed data) ----
+    ### 5.4 Freq.Bdd (on observed data) 
     if (!stopped_FreqBdd) {
       b_n <- log(ni)
       Mguess = 10 * Kobs_i
@@ -578,7 +620,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
       }
     }
     
-    ## ---- 5.5 Freq.Ubd (on observed data) ----
+    ### 5.5 Freq.Ubd (on observed data) 
     if (!stopped_FreqUbd) {
       Shat  <- sum(Nj_i) / ni
       Sstar <- ( sqrt( -log(beta) / (2 * ni) ) +
@@ -601,9 +643,9 @@ SRinc_grid_single_run <- function(eps, data, nstart, seed, alpha)
     if (stopped_3IBP && stopped_MixPois && stopped_MixBin && stopped_FreqBdd && stopped_FreqUbd) break
   }
   
-  ## ------------------------------------------------------------
+  ###
   ## Post-loop: handle rules that *never* stopped by n_max
-  ## ------------------------------------------------------------
+  ###
   if (!stopped_3IBP) {
     Nstop_3IBP <- n_max
   }
@@ -691,9 +733,9 @@ SRabu_cov_grid_single_run <- function(cov, data, nstart ,seed)
   stopped_cov <- FALSE
   Nstop_cov   <- NA_integer_
   
-  ## ------------------------------------------------------------
+  ###
   ## Run loop up to n_max = n
-  ## ------------------------------------------------------------
+  ###
   n_max = n
   ni = 2
   for(ni in nstart:(n_max-1)) {
@@ -701,7 +743,7 @@ SRabu_cov_grid_single_run <- function(cov, data, nstart ,seed)
     remaining <- n_max - ni
     if (remaining <= 0L) break
     
-    ## ---- Observed abundance vector (true + error species) ----
+    ### Observed abundance vector (true + error species)
     idx_species_i = ordered_idx[1:ni] # select obs. up to time ni
     data_i = data[idx_species_i] 
     Nj_i = table(data_i) # compute frequencies
@@ -709,7 +751,7 @@ SRabu_cov_grid_single_run <- function(cov, data, nstart ,seed)
     Kobs_i = length(which(Nj_i > 0))
     if( Kobs_i == 0L) next   # nothing observed yet
     
-    ## ---- Coverage-based rule ----
+    ### Coverage-based rule 
     if (!stopped_cov) {
       C_hat <- SpadeR:::Chat.Ind(Nj_i, m = sum(Nj_i))   
       if (!is.na(C_hat) && C_hat >= cov) {
@@ -722,9 +764,9 @@ SRabu_cov_grid_single_run <- function(cov, data, nstart ,seed)
     if (stopped_cov) break
   }
   
-  ## ------------------------------------------------------------
+  ###
   ## Post-loop: handle rules that *never* stopped by n_max
-  ## ------------------------------------------------------------
+  ###
   if (!stopped_cov) {
     Nstop_cov <- n_max
   }

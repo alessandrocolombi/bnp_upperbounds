@@ -2,18 +2,22 @@
 wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
-wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[1] # <--- modify here
-wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData/")
+wd_bocconi = "/home/colombi/"
+wd_vec = c(wd_pc,wd_unicatt,wd_g100,wd_bocconi)
+choose_wd = wd_vec[4] # <--- modify here
+wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData")
 setwd(wd)
 
 # Functions ---------------------------------------------------------------
-suppressWarnings(suppressPackageStartupMessages(library(tibble)))
 suppressWarnings(suppressPackageStartupMessages(library(parallel)))
 suppressWarnings(suppressPackageStartupMessages(library(doSNOW)))
-suppressWarnings(suppressPackageStartupMessages(library(progress)))
+
 source("../../R/Rfunctions.R")
 Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
+
+# From BinomialCIs
+source("../../../BinomialCIs/R/Rfunctions.R")
+Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 # Colors ------------------------------------------------------------------
 
@@ -33,17 +37,22 @@ Kn = length(Nj_locale)
 # Options  --------------------------------------------------------
 eps_grid = seq(0.001,0.2,length.out =  34*5)
 cov_grid = 1 - eps_grid
-alpha = 0.05
+alpha <- alfa <- 0.05
 M_max = 200
 nstart = 10
+var_prior = 10
+Mguess = 20
 
 seed0 = 4224
-num_cores = 34
+num_cores = 3
 Nrep = 50
 
+
 # Run) Mmax-based  --------------------------------------------------------
-# res = SRabu_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha, M_max)
-# save(res, file = "save/Mod1Abu_SRMmax.Rdat")
+res = SRabu_grid( eps_grid=eps_grid, data=data, nstart=nstart,
+                  Mguess=Mguess, var_prior=var_prior,
+                  Nrep=Nrep, num_cores=num_cores, seed0=seed0, alpha=alpha, M_max=M_max)
+save(res, file = "save/Mod1Abu_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
@@ -51,11 +60,11 @@ Nrep = 50
 
 # Plot --------------------------------------------------------------------
 stop_here = TRUE
-ltype = c(1,1,1,2)
-mycol = c("darkblue","darkred","darkorange","deeppink")
+ltype = c(1,1,1,1)
+mycol = c("darkorange","darkred","darkblue","lightblue")
 ygrids = vector("list",4)
 ygrids[[1]]<-ygrids[[2]]<-ygrids[[3]]<-eps_grid
-ygrids[[4]]<-(1-cov_grid)
+ygrids[[4]]<- eps_grid #(1-cov_grid)
 
 if(!stop_here){
   load("save/Mod1Abu_SRMmax.Rdat")

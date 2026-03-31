@@ -60,8 +60,8 @@ Mgrid = seq(Mmin_grid,Mmax_grid,by = 50); LMgrid = length(Mgrid)
 Nexp = length(Mgrid)
 seeds = sample(1:999999, size = Nexp)
 
-save_name_base = paste0("save/SS_species_nfix_") 
-save_name_base_cov = paste0("save/SS_species_nfix_Cov_") 
+save_name_base = paste0("save/SS_species_nfixMAP_") 
+save_name_base_cov = paste0("save/SS_species_nfixMAP_Cov_") 
 img_fld = paste0("img/SS_species_nfix_") 
 
 
@@ -299,8 +299,8 @@ Ngrid = seq(Nmin_grid,Nmax_grid,by = 500); LNgrid = length(Ngrid)
 Nexp = length(Ngrid)
 seeds = sample(1:999999, size = Nexp)
 
-save_name_base = paste0("save/SS_species_Mfix_") 
-save_name_base_cov = paste0("save/SS_species_Mfix_Cov_") 
+save_name_base = paste0("save/SS_species_MfixMAP_") 
+save_name_base_cov = paste0("save/SS_species_MfixMAP_Cov_") 
 img_fld = paste0("img/SS_species_Mfix_") 
 
 

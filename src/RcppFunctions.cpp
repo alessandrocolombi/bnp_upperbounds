@@ -365,7 +365,7 @@ NumericVector logUB_Oracle( const int& Nexp, const int& Nrep,
 
 // [[Rcpp::export]]
 double compute_log_UBMarkov( const int& Rmax, const double& alpha, const double& theta, const int& Kn, const int& n,
-						     const double& alpha_lev)
+						                 const double& alpha_lev)
 {
 	double inf = std::numeric_limits<double>::infinity();
 
@@ -394,8 +394,10 @@ double compute_log_UBMarkov( const int& Rmax, const double& alpha, const double&
 
 
 		// Find minumum
-		if(log_res_r < log_res)
+		if(log_res_r < log_res){
+			// Rcpp::Rcout<<"Aggiorno minimo: r = "<<r<<"; value = "<<log_res_r<<std::endl;
 			log_res = log_res_r;
+		}
 	}
 
 	return log_res;
