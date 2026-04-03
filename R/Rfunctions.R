@@ -208,6 +208,14 @@ llik_MixBin <- function(x, n, Kn, data_obs, var_nb) {
   mu_nb <- x[3]
   -log_efpfBeBeMixNBin( n, Kn, data_obs, a, b, mu_nb, var_nb )
 }
+
+llik_FB <- function(x, n, Kn, data_obs, M) {
+  a <- x[1]
+  b <- x[2]
+  -log_efpf_FB( n, Kn, M, data_obs, a, b )
+}
+
+
 f_beta <- function(x, n, alfa, Shat){
   if(n <= 0)
     stop("Error in lf_beta: n<=0")
@@ -229,20 +237,37 @@ lf_beta <- function(x, n, alfa, Shat){
 }
 
 # Gen. Dist. (features) ----------------------------------------------------
-sim_zipfs_features = function(M,s){
-  w = sapply(1:(M),function(j) j^(-s))
-  w 
+sim_features_Uniform = function(M, a){
+  w = runif(M,min = 0, max = a);w
 }
-sim_geom_features = function(M,a){
-  w = sapply(0:(M-1),function(j) (1-a)^(j-1)  )
+
+sim_features_Constant = function(M, c){
+  w = rep(c,M);w
 }
-sim_ghilo_features = function(M){
-  m = floor(M/3)
-  w = rep(0,M)
-  w[1:m] = 0.015
-  w[(m+1):(2*m)] = 0.01
-  w[(2*m+1):M] = 0.005
-  w 
+
+sim_features_TruncatedZipfs = function(M,s){
+  w = sapply(2:(M+1),function(j) j^(-s));w
+}
+
+sim_features_TruncatedGeom = function(M,a){
+  if(a >= 1)
+    stop("a must be strictly less than 1")
+  w = sapply(2:(M+1),function(j) (1-a)^(j-1) );w
+}
+
+sim_features_generic = function(name,M,param){
+  if(name == "Zipfs"){
+    sim_features_TruncatedZipfs(M,param)
+  }else if(name == "Constant"){
+    sim_features_Constant(M,param)
+  }else if( name == "Geom" ){
+    sim_features_TruncatedGeom(M,param)
+  }else if( name == "Uniform"){
+    sim_features_Uniform(M, param)
+  }
+  else
+    stop("Invalid name")
+  
 }
 
 # Mmax-based stopping rules -----------------------------------------------
@@ -1539,5 +1564,175 @@ SS_species = function(name,M,n,params,Nrep = 100,
 
 
 
+# Sim Study - features -----------------------------------------------------
 
+UB_features_fit = function(n,Kn,n_i,data_obs,Mmax,M,
+                           var_prior,Rmax,alpha,var_fct, 
+                           useMAP = TRUE, seed = 121321)
+{
+  #a) Define return object
+  res_names = c("Mmax","Bdd","Ubd",
+                "IBP","MBP","FB",
+                "gamma","sigma","c", # params IBP 
+                "a_MBP","b_MBP","m_MBP","q_MBP", # params IBP
+                "a_FB","b_FB", # params FB
+                "Kn")
+  res = matrix(NA,nrow = 1, ncol = length(res_names))
+  colnames(res) = res_names
+  
+  #b) Freq. Bdd
+  b_n <- log(n)
+  ubFreqBdd <- compute_UB_analytical(n, n_i, M, b_n, alpha, FALSE)
+  ubFreqBdd = min(ubFreqBdd,1)
+  res[1,2] = ubFreqBdd
+  
+  #c) Freq. Ubd
+  beta = 1e-5
+  Shat  <- sum(data_obs) / n
+  Sstar <- ( sqrt( -log(beta) / (2 * n) ) +
+             sqrt( Shat + (-log(beta) / (2 * n)) ) )^2
+  r_n   <- log( Sstar / (-log(1 - alpha + beta)) ) + log(n) - log(log(n))
+  ubFreqUbd <- compute_UB_rnorm(n, alpha, beta, r_n, Shat)
+  ubFreqUbd = min(1,ubFreqUbd)
+  res[1,3] = ubFreqUbd
+  
+  ### Bayesian UB computation
+  #d) 3 Parameters Indian Buffet Process (IBP)
+  model = "IBP"; cat("\n ",model," ... ")
+  ## i) Parameter estimation
+  if(FALSE){
+    stop("MAP not implemented yet")
+  } else if(TRUE){
+    cat("EB fit \n")
+    start_params <- c(alpha = 0.1, gamma= 1, u = 1)
+    fit <- optim(par = start_params, fn = llik_PP3Parm, 
+                 method = "L-BFGS-B",
+                 n = n, Kn = Kn, data_obs = data_obs,
+                 lower = c(1e-16, 1e-16, 1e-16), 
+                 upper = c(1-1e-10, Inf, Inf)) 
+    alpha_mle = fit$par[1]; res[1,8] = alpha_mle
+    gamma_mle = fit$par[2]; res[1,7] = gamma_mle
+    c_mle     = fit$par[3] - alpha_mle; res[1,9] = c_mle;
+  } else {
+    stop("Both MCMC, MAP and EB are false")
+  }
+  ## ii) Upper bound computation (IBP)
+  ub3IBP = exp(compute_log_UBMarkov_BeBePois(Rmax, alpha_mle, c_mle, gamma_mle, n, alpha ))
+  ub3IBP = min(1,ub3IBP)
+  res[1,4] = ub3IBP
+  
+  #d) Mixed Binomial process (MBP)
+  model = "MBP"; cat("\n ",model," ... ")
+  ## i) Parameter estimation
+  if(FALSE){
+    stop("MAP not implemented yet")
+  } else if(TRUE){
+    cat("EB fit \n")
+    fit <- tryCatch(ParEst_PFFA(n=n,counts=data_obs,
+                                model="NegBinBB_eb",Nhat0=50,
+                                var_fct = var_fct),
+                    error=function(e) NA)
+    a_mle = fit$a_mle; res[1,10] = a_mle
+    b_mle = fit$b_mle; res[1,11] = b_mle 
+    r_nb = fit$r_nb_mle; res[1,12] = r_nb
+    p_nb = fit$p_nb_mle;
+    q_nb = 1 - p_nb; res[1,13] = q_nb
+  } else{
+    stop("Both MCMC and EB are false")
+  }
+  ## ii) Upper bound computation (MBP)
+  ubMixBin = exp(compute_log_UBMarkov_BeBeMixNBin( Rmax, a_mle, b_mle, n, Kn, r_nb, p_nb, alpha))
+  ubMixBin = min(ubMixBin,1); res[1,5] = ubMixBin
+  #e) Finite Beta prior (FB)
+  model = "FB"; cat("\n ",model," ... ")
+  ## i) Parameter estimation
+  if(FALSE){
+    stop("MAP not implemented yet")
+  } else if(TRUE){
+    cat("EB fit \n")
+    start_params <- c(a = 1, b = 1)
+    fit <- optim(par = start_params, fn = llik_FB,
+                 method = "L-BFGS-B",
+                 n = n, Kn = Kn, data_obs = n_i, M=M,
+                 lower = c(1e-10, 1e-10), upper = c(Inf, Inf))
+    a_mle = fit$par[1]; res[1,12] = a_mle
+    b_mle = fit$par[2]; res[1,13] = b_mle 
+  }else{
+    stop("Both MCMC and EB are false")
+  }
+  ## ii) Upper bound computation (FB)
+  ubFB = exp(compute_log_UBMarkov_FB( Rmax, a_mle, b_mle, n, Kn, M, alpha))
+  ubFB = min(ubFB,1); res[1,6] = ubFB
+  #f) Save results
+  res[1,1] = Mmax
+  res[1,14] = Kn
+  # Return
+  res
+}
 
+SS_features_run = function(M, n, name, params, var_fct=100, var_prior = 10,
+                           alpha = 0.05,Rmax = 100, M_max = 200, 
+                           M_DM = NULL, seed = 121321)
+{
+  source("../../R/Rfunctions.R")
+  source("../../R/PFFAfunctions.R")
+  Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
+  # From BinomialCIs
+  source("../../../BinomialCIs/R/Rfunctions.R")
+  Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
+  
+  set.seed(seed)
+  ptrue = sim_features_generic(name,M,params)
+  ptrue = sort(ptrue, decreasing = TRUE)
+  
+  
+  #a) Generate data
+  data = rbinom(n = length(ptrue), size = n, prob = ptrue)
+  idx_obs = which(data > 0)
+  Kn = length(idx_obs)
+  data_obs = data[idx_obs]
+  if(Kn == M){
+    Mmax = 0
+  }else{
+    idx_unobs = which(data == 0)
+    Mmax = max(ptrue[idx_unobs])
+  }
+  
+  #b) Run analysis
+  UB_features_fit(n=n,Kn=Kn,n_i=data,data_obs=data_obs,
+                  Mmax=Mmax,M=M,var_prior=var_prior,Rmax=Rmax,var_fct=var_fct,
+                  alpha=alpha,useMAP = TRUE,seed=seed)
+  
+}
+
+SS_features = function(name,M,n,params,var_fct=100,Nrep = 100, 
+                       alpha = 0.05,Rmax = 100, seed0 = 121321,
+                       M_DM = NULL, var_prior = 10,
+                       parallel = TRUE, num_cores = 5)
+{
+  cat("\n","n = ",n," || ","M = ",M,"","\n")
+  set.seed(seed0)
+  seeds = sample(1:999999, size = Nrep)
+  
+  # Sequential case
+  if(!parallel){
+    res_list = lapply(seeds, function(seed) SS_features_run(
+      M=M, n=n, params=params, 
+      alpha=alpha, var_fct=var_fct, var_prior=var_prior,
+      Rmax=Rmax,M_DM=M_DM,seed=seed, name=name) )
+  }else{
+    ## Parallel case
+    cluster <- makeCluster(num_cores, type = "SOCK")
+    doSNOW::registerDoSNOW(cluster)
+    clusterExport(cluster, list("alpha"), envir = environment())
+    res_list = parLapply( cl = cluster, x = seeds,
+                          fun = SS_features_run,
+                          M=M, n=n, alpha=alpha, name=name, params=params, 
+                          M_DM=M_DM, var_prior=var_prior,
+                          Rmax=Rmax, var_fct=var_fct )
+    stopCluster(cluster)
+  }
+  
+  res_mat = do.call(rbind,res_list)
+  return(res_mat)
+}

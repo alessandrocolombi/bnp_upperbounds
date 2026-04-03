@@ -281,7 +281,7 @@ Nj_ordered = sort(N_j, decreasing = TRUE)
 
 
 ## PFFA -------------------------------------------------------------------
-eb_init_BB <- list(alpha = -1, s = 100, Nhat_prime = 50)
+eb_init_BB <- list(alpha = -1, s = 100, Nhat_prime = Kn)
 eb_known_BB <- list()
 eb_params_obj_BB <- eb_params(model = "BB", init = eb_init_BB, known = eb_known_BB )
 
@@ -381,6 +381,8 @@ set.seed(seed)
 
 data = t(A)
 
+
+## Product form FA
 var_fct_vec = c(1,5,10,50,100,500,1000)
 eb_init_BB <- list(alpha = -1, s = 100, Nhat_prime = 50)
 eb_known_BB <- list()
@@ -407,7 +409,7 @@ sapply(res_vec_PF, function(x) x$a_mle)
 sapply(res_vec_PF, function(x) x$b_mle)
 
 
-
+## Ale
 one_over_p_vec = c(1,5,10,50,100,500,1000)
 Ltrials = length(one_over_p_vec)
 

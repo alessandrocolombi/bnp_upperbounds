@@ -14,7 +14,7 @@ n_meetings = ncol(A)-1 # 47, first column reports the names
 
 # Colors ------------------------------------------------------------------
 save_img = FALSE
-width = 8; height = 6
+width = 12; height = 6
 bw_col = c("grey90","black")
 
 
@@ -123,15 +123,19 @@ Nj_locale = table(Locale_temp)
 Nj_locale = sort(Nj_locale, decreasing = TRUE)
 bp1 = barplot(Nj_locale)
 
-par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0))
+
+if(save_img)
+  pdf("img/Barplot_AbundanceLocale.pdf", width=width, height=height)
+par(mfrow = c(1,1), mgp=c(1.5,0.5,0), mar = c(2,2.5,1,0),cex = 2)
 barplot( height = Nj_locale, 
          names.arg = "", las = 2, col = "darkred", border = NA,
          main = " ", ylab = "#obs.", yaxt = "n" )
-axis( side = 2, at = seq(0, max(Nj_locale), by=2), las = 1)
+axis( side = 2, at = seq(0, max(Nj_locale), by=5), las = 1)
 text( x = bp1, y = -1, 
       labels = names(Nj_locale), cex = 0.9,
       srt = 0, adj = 0.5, xpd = TRUE)
-
+if(save_img)
+  dev.off()
 
 
 ## Plot raw data - reduced -----------------------------------------------------------
@@ -246,9 +250,12 @@ AccCurves_res = apply(AccCurves_mat, 2, quantile, probs = c(0.025,0.5,0.975))
 
 # Plot
 ngrid = 1:n_people 
-par(mfrow = c(1,1), mar = c(3,3,2,1), mgp=c(1.5,0.5,0), bty = "l")
+
+if(save_img)
+  pdf("img/AccCurves_LocaleAbundances.pdf", width=width, height=height)
+par(mfrow = c(1,1), mar = c(2.5,2.5,0,1), mgp=c(1.5,0.5,0), bty = "l", cex = 2)
 plot(x = 0, y = 0, type = "n",
-     main = "Locale abundances", xlab = "#obs.", ylab = "#Locali",
+     main = " ", xlab = "n", ylab = "#Locali",
      ylim = c(0,max(AccCurves_res)+1),
      xlim = c(0,n_people+1),
      pch = 1) # init plot
@@ -257,7 +264,8 @@ polygon( c(ngrid, rev(ngrid)),
          col = "grey75",
          border = NA) # plot in-sample bands
 points(x = ngrid, y = AccCurves_res[2,], type = "l", lwd = 3) # plot mean obs
-
+if(save_img)
+  dev.off()
 
 ## Meetings level ------------------------------------------------------
 seed = 12131

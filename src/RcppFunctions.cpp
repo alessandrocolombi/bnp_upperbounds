@@ -1806,9 +1806,9 @@ double log_ExpMr_BeBeMixNBin( const int& r, const double& a, const double& b,
 
 // [[Rcpp::export]]
 double compute_log_UBMarkov_BeBeMixNBin( const int& Rmax, const double& a, const double& b,
-									     const int& n, const int& Kn,
-							             const double& r_nb, const double& p_nb, 
-							             const double& alpha_lev)
+																	       const int& n, const int& Kn,
+															           const double& r_nb, const double& p_nb, 
+															           const double& alpha_lev)
 {
 	double inf = std::numeric_limits<double>::infinity();
 
@@ -1845,8 +1845,8 @@ double compute_log_UBMarkov_BeBeMixNBin( const int& Rmax, const double& a, const
 
 // [[Rcpp::export]]
 double log_efpfBeBeMixNBin( const int& n, const int& Kn, const std::vector<int>& n_j, 
-					        const double& a, const double& b,
-					        const double& r_nb, const double& p_nb )
+					                  const double& a, const double& b,
+					                  const double& r_nb, const double& p_nb )
 {
 	double inf = std::numeric_limits<double>::infinity();
 
@@ -1865,9 +1865,6 @@ double log_efpfBeBeMixNBin( const int& n, const int& Kn, const std::vector<int>&
 
 	// Check domain
 	if(a <= 0 || b <= 0){
-		return -std::exp(20);
-	}
-	if(r_nb <= 0 || p_nb <= 1e-16 || p_nb>= (1.0-1e-16)){
 		return -std::exp(20);
 	}
 
@@ -1901,6 +1898,134 @@ double log_efpfBeBeMixNBin( const int& n, const int& Kn, const std::vector<int>&
 	}
 	return res;
 }
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------
+//	Features - Finite Beta prior (FB prior)
+//------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// [[Rcpp::export]]
+double log_ExpMr_FB( const int& r, const double& a, const double& b, 
+							       const int& n, const int& Kn, const int& M )
+{
+	double inf = std::numeric_limits<double>::infinity();
+
+	if(r < 1)
+		throw std::runtime_error("Error in log_ExpMr_FB: r must be at least one");
+	if(n < 1)
+		throw std::runtime_error("Error in log_ExpMr_FB: n must be at least one");
+	if(Kn <= 0)
+		throw std::runtime_error("Error in log_ExpMr_FB: Kn must be at least one");
+	if(a < 0.0)
+		throw std::runtime_error("Error in log_ExpMr_FB: a must be positive");
+	if(b < 0.0)
+		throw std::runtime_error("Error in log_ExpMr_FB: c must be positive");
+	if(Kn > M)
+		throw std::runtime_error("Error in log_ExpMr_FB: Kn must be smaller or equal than M");
+	if(M <= 0)
+		throw std::runtime_error("Error in log_ExpMr_FB: M must be at least one");
+
+	if(Kn == M)
+		return -inf;
+
+  double res = std::log( (double)(M-Kn) ) + 
+  						 std::lgamma(a+(double)r)   - std::lgamma(a) +
+  						 std::lgamma(a+b+(double)n) - std::lgamma(a+b+(double)n+(double)r);
+	return res;
+}
+
+// [[Rcpp::export]]
+double compute_log_UBMarkov_FB( const int& Rmax, const double& a, const double& b,
+																const int& n, const int& Kn, const int& M, 
+															  const double& alpha_lev)
+{
+	double inf = std::numeric_limits<double>::infinity();
+
+	if(Rmax < 1)
+		throw std::runtime_error("Error in compute_log_UBMarkov_FB: Rmax must be at least one");
+	if(n < 1)
+		throw std::runtime_error("Error in compute_log_UBMarkov_FB: n must be at least one");
+	if(Kn <= 0)
+		throw std::runtime_error("Error in compute_log_UBMarkov_FB: Kn must be at least one");
+	if(a < 0.0)
+		throw std::runtime_error("Error in compute_log_UBMarkov_FB: a must be positive");
+	if(b < 0.0)
+		throw std::runtime_error("Error in compute_log_UBMarkov_FB: b must be positive");
+	if(Kn > M)
+		throw std::runtime_error("Error in compute_log_UBMarkov_FB: Kn must be smaller or equal than M");
+	if(M <= 0)
+		throw std::runtime_error("Error in compute_log_UBMarkov_FB: M must be at least one");
+	if(alpha_lev < 1e-16 || alpha_lev > 1 - 1e-16)
+		throw std::runtime_error("Error in compute_log_UBMarkov_FB: alpha_lev must be at scalar in the range (1e-16,1-1e-16)");
+
+	double log_res{inf};
+	for (int r = 1; r <= Rmax; r++)
+	{
+		// 1/r * ( log(ExpVal) - log(alpha_lev) )
+		double log_res_r{ 0.0 };
+		log_res_r = 1.0/double(r) * ( log_ExpMr_FB( r, a, b, n, Kn, M) - std::log(alpha_lev) );
+		// Find minumum
+		if(log_res_r < log_res)
+			log_res = log_res_r;
+	}
+
+	return log_res;
+}
+
+// [[Rcpp::export]]
+double log_efpf_FB( const int& n, const int& Kn, const int& M, 
+									  const std::vector<int>& n_j, 
+					          const double& a, const double& b )
+{
+	double inf = std::numeric_limits<double>::infinity();
+
+	if(n < 1)
+		throw std::runtime_error("Error in log_efpf_FB: n must be at least one");
+	if(Kn <= 0)
+		throw std::runtime_error("Error in log_efpf_FB: Kn must be at least one");
+	if(n_j.size() != M)
+		throw std::runtime_error("Error in log_efpf_FB: the length of n_j must match the alphabet size M");
+	std::for_each(n_j.cbegin(), n_j.cend(), [n](const int& x){ 
+		if(x < 0)
+			throw std::runtime_error("Error in log_efpf_FB: invalid number of features (n_j[j] < 0)");
+		if(x > n )  
+			throw std::runtime_error("Error in log_efpf_FB: invalid number of features (n_j[j] > n)");
+	});
+	if(Kn > M)
+		throw std::runtime_error("Error in log_efpf_FB: Kn must be smaller or equal than M");
+	if(M <= 0)
+		throw std::runtime_error("Error in log_efpf_FB: M must be at least one");
+
+	// Check domain
+	if(a <= 0 || b <= 0){
+		return -std::exp(20);
+	}
+
+
+	// Compute EFPF
+	double res{0.0};
+	res -= ((double)M) * gsl_sf_lnbeta(a,b);
+	for(std::size_t j = 0; j < n_j.size(); j++){
+		double nj = n_j[j];
+		res += gsl_sf_lnbeta(a+nj,(double)n-nj+b);
+		res += gsl_sf_lnchoose(n,nj);
+	}
+	if( res == inf || std::isnan(res) || res == -inf){
+		Rcpp::Rcout<<"Error in log_efpf_FB: NaN, Inf or -Inf returned "<<std::endl;
+		Rcpp::Rcout<<"res = "<<res<<std::endl;
+		Rcpp::Rcout<<"a = "<<a<<std::endl;
+		Rcpp::Rcout<<"b = "<<b<<std::endl;
+		Rcpp::Rcout<<"n = "<<n<<std::endl;
+		Rcpp::Rcout<<"Kn = "<<Kn<<std::endl;
+		Rcpp::Rcout<<"M = "<<M<<std::endl;
+		Rcpp::Rcout<<"Stampo n_j: ";		
+		for(auto __v : n_j)
+			Rcpp::Rcout<<__v<<", ";
+		Rcpp::Rcout<<std::endl;
+		throw std::runtime_error("Error in log_efpf_FB");
+	}
+	return res;
+}
+
 // --------------------------------------------------------------------------------------------
 // Test functions
 // --------------------------------------------------------------------------------------------

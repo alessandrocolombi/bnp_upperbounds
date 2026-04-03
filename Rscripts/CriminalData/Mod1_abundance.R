@@ -73,7 +73,7 @@ ubfreq
 # theta_mle = fit$par[2]
 
 sigma_mle = UB_all[1,6]; theta_mle = UB_all[1,7]
-
+c(sigma_mle,theta_mle)
 # Plot
 Nrep = 100; Natoms = 500
 sim_PYP = r_SB(Nrep,Natoms,sigma_mle,theta_mle,seed)
@@ -107,6 +107,8 @@ segments(x0 = (1:xmax)+0.25, x1 = (1:xmax)+0.25,
 if(save_img)
   dev.off()
 
+
+
 # Upper bound (PYP)
 # ubpyp = exp(compute_log_UBMarkov( Rmax, alpha_mle, theta_mle, Kn, n, alfa ))
 ubpyp = UB_all[1,3]
@@ -123,7 +125,7 @@ M_max = 200
 # gamma_mle = fit$par[1]
 # Lambda_mle = fit$par[2]
 gamma_FDP = UB_all[1,8]; Lambda_FDP = UB_all[1,9]
-
+c(Lambda_FDP,gamma_FDP)
 
 # Plot
 Mub = 100
@@ -171,7 +173,7 @@ ubFD = UB_all[1,4]
 ubFD
 
 ## DirMulti ------------------------------------------------------------
-gamma_DM = UB_all[1,10]
+gamma_DM = UB_all[1,10]; gamma_DM
 
 # Plot
 sim_DM = matrix(0,nrow = Nrep, ncol = Mguess)
