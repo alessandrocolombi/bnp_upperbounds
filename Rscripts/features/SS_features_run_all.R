@@ -61,12 +61,12 @@ seeds = sample(1:999999, size = Nexp)
 save_exp = TRUE # <---
 save_name_base = paste0("save/SS_features_nfix_")
 img_fld = paste0("img/")
-igrid = c(1:3)
-ii = 1
+igrid = c(3) # <---
+ii = 3
 for(ii in igrid){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 3
+  jj = 1
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]

@@ -205,7 +205,9 @@ N_j = sort(N_j, decreasing = TRUE)
 names(N_j) = sapply(N_j, function(x) paste0(""))
 bp1 = barplot(N_j)
 
-par(mfrow = c(1,1), mgp=c(2.5,0.5,0), mar = c(2.5,3.5,1,0))
+if(save_img)
+  pdf("img/Barplot_Crim4features.pdf", width = width, height = height)
+par(mfrow = c(1,1), mgp=c(1.5,0.5,0), mar = c(2,2.5,1,0),cex = 2)
 barplot( height = N_j, 
          names.arg = "", las = 2, col = "darkred", border = NA,
          main = " ", ylab = "#obs.", yaxt = "n" )
@@ -213,7 +215,8 @@ axis( side = 2, at = seq(0, max(N_j), by=2), las = 1)
 text( x = bp1, y = -1, 
       labels = names(N_j), cex = 0.2,
       srt = 0, adj = 0.5, xpd = TRUE)
-
+if(save_img)
+  dev.off()
 
 ord <- order(N_j, decreasing = TRUE)
 N_j_sorted <- N_j[ord]
@@ -222,7 +225,7 @@ Role_sorted <- Role_temp[ord]
 cols <- ifelse(Role_sorted == "boss", "darkred", "steelblue") # colors by role
 
 if(save_img)
-  pdf("img/Mod3_Inc4people_barplot.pdf", width = width, height = height)
+  pdf("img/Barplot_Crim4features_boss_aff.pdf", width = width, height = height)
 par(mfrow = c(1,1), mgp=c(1,0.5,0), mar = c(1,2,1,0), cex = 2)
 bp1 <- barplot(height = N_j_sorted,
                names.arg = "",
@@ -233,6 +236,7 @@ legend("topright", legend = c("boss", "affil"),
        fill = c("darkred", "steelblue"), border = NA, bty = "n")
 if(save_img)
   dev.off()
+
 # Accumulation curves -----------------------------------------------------
 seed = 42
 set.seed(seed)
@@ -294,9 +298,12 @@ AccCurves_mod2 = rarefaction.array(object = t(A), n_reorderings = n_reorderings,
 
 
 ngrid = 1:n_meetings 
-par(mfrow = c(1,1), mar = c(3,3,2,1), mgp=c(1.5,0.5,0), bty = "l")
+
+if(save_img)
+  pdf("img/AccCurves_Crim4features.pdf", width=width, height=height)
+par(mfrow = c(1,1), mar = c(2.5,2.5,1,1), mgp=c(1.5,0.5,0), bty = "l", cex = 2)
 plot(x = 0, y = 0, type = "n",
-     main = " ", xlab = "#obs.", ylab = "#People",
+     main = " ", xlab = "n", ylab = "#Affiliates",
      ylim = c(0,max(AccCurves_mod2)+1),
      xlim = c(0,n_meetings+1),
      pch = 1) # init plot
@@ -305,7 +312,8 @@ polygon( c(ngrid, rev(ngrid)),
          col = "grey75",
          border = NA) # plot in-sample bands
 points(x = ngrid, y = AccCurves_mod2[2,], type = "l", lwd = 3) # plot mean obs
-
+if(save_img)
+  dev.off()
 
 
 
