@@ -68,7 +68,7 @@ img_fld = paste0("img/SS_features_nfix_")
 save_cov = TRUE
 
 ii = 1
-igrid = c(1)
+igrid = c(1:3)
 for(ii in igrid){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
@@ -143,7 +143,7 @@ Tables[[3]]
 
 ## CI length ---------------------------------------------------------------
 ii = 1
-igrid = c(1)
+igrid = c(1:3)
 for(ii in igrid){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
@@ -199,9 +199,9 @@ for(ii in igrid){
                col = scales::alpha(mycol[ij], 0.25),
                border = NA) # plot in-sample bands
     }
-    legend("topright",lgd_names,
-           fill = c("black",mycol), 
-           cex = cex.legend, bty = "n", border = NA)
+    # legend("topright",lgd_names,
+    #        fill = c("black",mycol), 
+    #        cex = cex.legend, bty = "n", border = NA)
     if(save_img)
       dev.off()
   }
@@ -211,7 +211,7 @@ for(ii in igrid){
 
 # Aiutati --> non salvare tutte queste immagini
 ii = 1
-igrid = c(1)
+igrid = c(1:3)
 for(ii in igrid){
   
   name = names(experiments)[ii]
