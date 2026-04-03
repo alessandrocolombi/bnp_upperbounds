@@ -9,13 +9,13 @@ setwd(wd)
 
 # Functions ---------------------------------------------------------------
 source("../../R/Rfunctions.R")
+source("../../R/PFFAfunctions.R")
 Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
 
 # From BinomialCIs
 source("../../../BinomialCIs/R/Rfunctions.R")
 Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
-library("ProductFormFA")
 
 # Plot options ------------------------------------------------------------------
 save_img = FALSE

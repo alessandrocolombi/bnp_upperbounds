@@ -1568,7 +1568,7 @@ SS_species = function(name,M,n,params,Nrep = 100,
 
 UB_features_fit = function(n,Kn,n_i,data_obs,Mmax,M,
                            var_prior,Rmax,alpha,var_fct, 
-                           useMAP = TRUE, seed = 121321)
+                           useMAP = TRUE, seed)
 {
   #a) Define return object
   res_names = c("Mmax","Bdd","Ubd",
@@ -1671,8 +1671,7 @@ UB_features_fit = function(n,Kn,n_i,data_obs,Mmax,M,
 }
 
 SS_features_run = function(M, n, name, params, var_fct=100, var_prior = 10,
-                           alpha = 0.05,Rmax = 100, M_max = 200, 
-                           M_DM = NULL, seed = 121321)
+                           alpha = 0.05,Rmax = 100, M_DM = NULL, seed)
 {
   source("../../R/Rfunctions.R")
   source("../../R/PFFAfunctions.R")
@@ -1690,6 +1689,7 @@ SS_features_run = function(M, n, name, params, var_fct=100, var_prior = 10,
   data = rbinom(n = length(ptrue), size = n, prob = ptrue)
   idx_obs = which(data > 0)
   Kn = length(idx_obs)
+  cat("Kn = ",Kn,"; data[1:5]=",data[1:5],"\n")
   data_obs = data[idx_obs]
   if(Kn == M){
     Mmax = 0
@@ -1713,7 +1713,6 @@ SS_features = function(name,M,n,params,var_fct=100,Nrep = 100,
   cat("\n","n = ",n," || ","M = ",M,"","\n")
   set.seed(seed0)
   seeds = sample(1:999999, size = Nrep)
-  
   # Sequential case
   if(!parallel){
     res_list = lapply(seeds, function(seed) SS_features_run(

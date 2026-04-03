@@ -43,14 +43,13 @@ experiments   = list("Zipfs"   = params_zipfs,
 
 alpha <- alfa <- 0.05
 num_cores = 33 # <---
-Nrep = 100 # <---
+Nrep = 200 # <---
 Rmax = 100; RmaxFD = 50
-M_max = 200
 seed0 = 42
 set.seed(seed0)
 var_prior = 10
 var_fct = 100
-parallel = TRUE
+parallel = TRUE # <---
 
 # n fix -----------------------------------------------------------------
 n = 2000
