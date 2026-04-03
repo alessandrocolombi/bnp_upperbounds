@@ -55,7 +55,7 @@ parallel = TRUE
 # n fix -----------------------------------------------------------------
 n = 2000
 Mmin_grid = 100; Mmax_grid = 10000
-Mgrid = seq(Mmin_grid,Mmax_grid,by = 200); LMgrid = length(Mgrid)
+Mgrid = seq(Mmin_grid,Mmax_grid,by = 500); LMgrid = length(Mgrid)
 Nexp = length(Mgrid)
 seeds = sample(1:999999, size = Nexp)
 

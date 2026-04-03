@@ -1798,9 +1798,15 @@ double log_ExpMr_BeBeMixNBin( const int& r, const double& a, const double& b,
 	double kappa_n{std::exp( log_raising_factorial(n,b) - log_raising_factorial(n, a+b) ) };
 	double r_nb_prime = r_nb + Kn;
 	double p_nb_prime = 1.0 - kappa_n*(1.0 - p_nb);
-	double l_postmean_M{ std::log(r_nb_prime) + std::log(1.0 - p_nb_prime) - std::log(p_nb_prime)  };
-	//double res = l_postmean_M + log_raising_factorial(r,a) + log_raising_factorial(n,b) - log_raising_factorial(r+n, a+b) ;
-	double res = l_postmean_M + log_raising_factorial(r,a) - log_raising_factorial(r, a+b+n) ;
+	//double l_postmean_M{ std::log(r_nb_prime) + std::log(1.0 - p_nb_prime) - std::log(p_nb_prime)  };
+	//double res = l_postmean_M + log_raising_factorial(r,a) - log_raising_factorial(r, a+b+n) ;
+	double res = std::log(r_nb_prime+(double)Kn) + std::log( 1.0-p_nb_prime ) - std::log( p_nb_prime );
+			//Rcpp::Rcout<<"-------------------"<<std::endl;
+			//Rcpp::Rcout<<"r = "<<r<<std::endl;
+			//Rcpp::Rcout<<"Exp(Mstar) = "<< std::exp(res) <<std::endl;
+			//Rcpp::Rcout<<" (a)_r/(a+b+n)_r = "<< std::exp( std::lgamma(a+(double)r)   - std::lgamma(a) + std::lgamma(a+b+(double)n) - std::lgamma(a+b+(double)n+(double)r) ) <<std::endl;
+			//Rcpp::Rcout<<"-------------------"<<std::endl;
+	res +=  std::lgamma(a+(double)r)   - std::lgamma(a) + std::lgamma(a+b+(double)n) - std::lgamma(a+b+(double)n+(double)r);
 	return res;
 }
 
@@ -1836,8 +1842,10 @@ double compute_log_UBMarkov_BeBeMixNBin( const int& Rmax, const double& a, const
 		double log_res_r{ 0.0 };
 		log_res_r = 1.0/double(r) * ( log_ExpMr_BeBeMixNBin( r, a, b, n, Kn, r_nb,  p_nb ) - std::log(alpha_lev) );
 		// Find minumum
-		if(log_res_r < log_res)
+		if(log_res_r < log_res){
+			//Rcpp::Rcout<<"r min = "<<r<<std::endl;
 			log_res = log_res_r;
+		}
 	}
 
 	return log_res;

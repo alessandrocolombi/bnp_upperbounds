@@ -9,6 +9,7 @@
 #     Software Foundation; see <https:#cran.r-project.org/web/licenses/GPL-3>.                    |
 #                                                                                                 |
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+library("ProductFormFA")
 my_neg_log_EFPF_BB_R <- function(n, counts, par, known){ # par: alpha, s, Nhat' = Nhat - k
   
   par <- ifelse(is.na(known), par, known)
@@ -23,7 +24,6 @@ my_neg_log_EFPF_IBP_R <- function(n, counts, par, known){ # par: alpha, s, Gamma
   return(neg_log_EFPF_IBP(n, counts, par))
   
 }
-
 
 opt_GibbsFA_eb <- function(n, counts, model, type, 
                            eb_params = NULL, 

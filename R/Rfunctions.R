@@ -1598,12 +1598,12 @@ UB_features_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   
   ### Bayesian UB computation
   #d) 3 Parameters Indian Buffet Process (IBP)
-  model = "IBP"; cat("\n ",model," ... ")
+  # model = "IBP"; cat("\n ",model," ... ")
   ## i) Parameter estimation
   if(FALSE){
     stop("MAP not implemented yet")
   } else if(TRUE){
-    cat("EB fit \n")
+    # cat("EB fit \n")
     start_params <- c(alpha = 0.1, gamma= 1, u = 1)
     fit <- optim(par = start_params, fn = llik_PP3Parm, 
                  method = "L-BFGS-B",
@@ -1622,21 +1622,21 @@ UB_features_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   res[1,4] = ub3IBP
   
   #d) Mixed Binomial process (MBP)
-  model = "MBP"; cat("\n ",model," ... ")
+  # model = "MBP"; cat("\n ",model," ... ")
   ## i) Parameter estimation
   if(FALSE){
     stop("MAP not implemented yet")
   } else if(TRUE){
-    cat("EB fit \n")
-    fit <- tryCatch(ParEst_PFFA(n=n,counts=data_obs,
-                                model="NegBinBB_eb",Nhat0=50,
-                                var_fct = var_fct),
-                    error=function(e) NA)
-    a_mle = fit$a_mle; res[1,10] = a_mle
-    b_mle = fit$b_mle; res[1,11] = b_mle 
-    r_nb = fit$r_nb_mle; res[1,12] = r_nb
-    p_nb = fit$p_nb_mle;
-    q_nb = 1 - p_nb; res[1,13] = q_nb
+    # cat("EB fit \n")
+    fit <- tryCatch(
+      ParEst_PFFA(n=n, counts=data_obs, model="NegBinBB_eb", Nhat0=1.25*Kn, var_fct=var_fct),
+      error = function(e) stop(conditionMessage(e))
+    )
+      a_mle = fit$a_mle; res[1,10] = a_mle
+      b_mle = fit$b_mle; res[1,11] = b_mle 
+      r_nb = fit$r_nb_mle; res[1,12] = r_nb
+      p_nb = fit$p_nb_mle;
+      q_nb = 1 - p_nb; res[1,13] = q_nb
   } else{
     stop("Both MCMC and EB are false")
   }
@@ -1644,19 +1644,19 @@ UB_features_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   ubMixBin = exp(compute_log_UBMarkov_BeBeMixNBin( Rmax, a_mle, b_mle, n, Kn, r_nb, p_nb, alpha))
   ubMixBin = min(ubMixBin,1); res[1,5] = ubMixBin
   #e) Finite Beta prior (FB)
-  model = "FB"; cat("\n ",model," ... ")
+  # model = "FB"; cat("\n ",model," ... ")
   ## i) Parameter estimation
   if(FALSE){
     stop("MAP not implemented yet")
   } else if(TRUE){
-    cat("EB fit \n")
+    # cat("EB fit \n")
     start_params <- c(a = 1, b = 1)
     fit <- optim(par = start_params, fn = llik_FB,
                  method = "L-BFGS-B",
                  n = n, Kn = Kn, data_obs = n_i, M=M,
                  lower = c(1e-10, 1e-10), upper = c(Inf, Inf))
-    a_mle = fit$par[1]; res[1,12] = a_mle
-    b_mle = fit$par[2]; res[1,13] = b_mle 
+    a_mle = fit$par[1]; res[1,14] = a_mle
+    b_mle = fit$par[2]; res[1,15] = b_mle 
   }else{
     stop("Both MCMC and EB are false")
   }
@@ -1665,7 +1665,7 @@ UB_features_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   ubFB = min(ubFB,1); res[1,6] = ubFB
   #f) Save results
   res[1,1] = Mmax
-  res[1,14] = Kn
+  res[1,16] = Kn
   # Return
   res
 }
