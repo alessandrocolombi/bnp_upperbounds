@@ -2,10 +2,12 @@
 wd_pc = "C:/Users/colom/"
 wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
-wd_vec = c(wd_pc,wd_unicatt,wd_g100)
-choose_wd = wd_vec[1] # <--- modify here
-wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData/")
+wd_bocconi = "/home/colombi/"
+wd_vec = c(wd_pc,wd_unicatt,wd_g100,wd_bocconi)
+choose_wd = wd_vec[4] # <--- modify here
+wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData")
 setwd(wd)
+
 
 # Functions ---------------------------------------------------------------
 suppressWarnings(suppressPackageStartupMessages(library(tibble)))
@@ -13,15 +15,21 @@ suppressWarnings(suppressPackageStartupMessages(library(parallel)))
 suppressWarnings(suppressPackageStartupMessages(library(doSNOW)))
 suppressWarnings(suppressPackageStartupMessages(library(progress)))
 source("../../R/Rfunctions.R")
+source("../../R/PFFAfunctions.R")
 Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
 source("../../../BinomialCIs/R/Rfunctions.R")
 Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
-# Colors ------------------------------------------------------------------
+# Plot options ------------------------------------------------------------------
 save_img = FALSE
 width = 12; height = 6
-cex.labels = 2
-xmax = 140
+cex.labels <- cex.lab <- 2
+cex.axis <- 2
+cex.legend <- 1.5
+mycol = c("darkblue","darkred","darkorange","lightblue")
+mycol2 = c("black","lightblue")
+lgd_names = c("Freq","PYP","FDP","Dir-Multi")
+
 
 # Load --------------------------------------------------------------------
 
@@ -45,12 +53,12 @@ M_max = 200
 nstart = 10
 
 seed0 = 4224
-num_cores = 34
-Nrep = 50
+num_cores = 34 # <--- modify here
+Nrep = 50 # <--- modify here
 
 # Run) Mmax-based  --------------------------------------------------------
-# res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
-# save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
+res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
+save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)

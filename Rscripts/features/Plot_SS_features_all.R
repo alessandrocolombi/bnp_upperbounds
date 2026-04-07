@@ -24,7 +24,7 @@ Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 # Custom functions --------------------------------------------------------
 
 # Plot options ------------------------------------------------------------------
-save_img = FALSE
+save_img = TRUE
 width = 12; height = 6
 cex.labels <- cex.lab <- 2
 cex.axis <- 2
@@ -287,15 +287,15 @@ for(ii in igrid){
 
 # M fix -------------------------------------------------------------------
 
-M = 1000
-Nmin_grid = 100; Nmax_grid = 5000
+M = 5000
+Nmin_grid = 500; Nmax_grid = 10000
 Ngrid = seq(Nmin_grid,Nmax_grid,by = 500); LNgrid = length(Ngrid)
 Nexp = length(Ngrid)
 seeds = sample(1:999999, size = Nexp)
 
-save_name_base = paste0("save/SS_species_MfixMAP_") 
-save_name_base_cov = paste0("save/SS_species_MfixMAP_Cov_") 
-img_fld = paste0("img/SS_species_Mfix_") 
+save_name_base = paste0("save/SS_features_Mfix_") 
+save_name_base_cov = paste0("save/SS_features_Mfix_Cov_") 
+img_fld = paste0("img/SS_features_Mfix_") 
 
 
 
@@ -321,13 +321,13 @@ for(ii in 1:length(experiments)){
     
     # Coverage
     cov_mat <- do.call(rbind, lapply(ExpRes_list, function(x) {
-      x = x[,1:5]
+      x = x[,1:6]
       Nrep <- nrow(x)
       if (Nrep == 0) return(rep(NA_real_, ncol(x) - 1))
       counts <- colSums(x[, -1, drop = FALSE] >= x[, 1])
       counts / Nrep
     }))
-    colnames(cov_mat) <- colnames(ExpRes_list[[1]])[2:5]
+    colnames(cov_mat) <- colnames(ExpRes_list[[1]])[2:6]
     rownames(cov_mat) <- as.character(Ngrid)
     
     if( any( apply(cov_mat,2,function(x) length(which(x<(1-alpha))))) )
@@ -341,9 +341,9 @@ for(ii in 1:length(experiments)){
 ## Coverage - Table paper --------------------------------------------------
 
 
-Tables = vector("list",4); counter = 1
+Tables = vector("list",3); counter = 1
 ii = 1
-for(ii in 1:4){
+for(ii in 1:3){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
   jj = 2
@@ -362,8 +362,8 @@ for(ii in 1:4){
     cov_mat_all = cbind(cov_mat_all,cov_mat)
   }
   ord = c()
-  for(j in 1:4){
-    ord = c(ord, seq(j,4*Ncases,by = 4))
+  for(j in 1:5){
+    ord = c(ord, seq(j,5*Ncases,by = 5))
   }
   cov_mat_all = cov_mat_all[,ord]
   cov_mat_all = round(cov_mat_all,3)
@@ -372,10 +372,9 @@ for(ii in 1:4){
 }
 idx_rows = c(1,2,3,5,7,9)
 Tables = lapply(Tables, function(x) x[idx_rows,])
-Tables[[1]][,-c(4,8,12,16)]
+Tables[[1]]
 Tables[[2]]
 Tables[[3]]
-Tables[[4]][,-c(2,6,10,14)]
 
 ## CI length ---------------------------------------------------------------
 ii = 3

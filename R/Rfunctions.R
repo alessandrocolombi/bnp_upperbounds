@@ -1352,13 +1352,14 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   ### Bayesian UB computation
   pval <- tryCatch( MultinomialTest(Nj = data_obs, M = NULL), error = function(e) 1 )
   runEB = ifelse(pval <= 0.05, TRUE, FALSE)
+  runEB = TRUE #<-- force EB here, if needed
   runMAP = !runEB
   if(useMAP == FALSE)
     runMAP = FALSE
   runMCMC = !(runEB ||  runMAP)
   
   #c) Poisson-Dirichlet (PD)
-  model = "PD"; cat("\n ",model," ... ")
+  model = "PD"; #cat("\n ",model," ... ")
   ## i) Parameter estimation
   if(FALSE){
     cat("MCMC fit \n")
@@ -1374,7 +1375,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
     sigma  = mean(sigmas[(Niter/2):Niter])
     theta = mean(thetas[(Niter/2):Niter])
   } else if(FALSE){
-    cat("MAP fit \n")
+    # cat("MAP fit \n")
     start_params <- c(alpha = 0.5, theta = 1)
     fit <- optim(par = start_params, fn = lpost_pyp, 
                  n = n, Kn = Kn, data_obs = data_obs, hy = hy_pyp, # extra parameters
@@ -1383,7 +1384,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
     sigma = fit$par[1]
     theta = fit$par[2]
   } else if(TRUE){
-    cat("EB fit \n")
+    # cat("EB fit \n")
     start_params <- c(alpha = 0.5, theta = 1)
     fit <- optim(par = start_params, fn = llik_pyp, 
                  n = n, Kn = Kn, data_obs = data_obs, # extra parameters
@@ -1401,7 +1402,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   res[1,7] = theta
   
   #d) Finite Dirichlet Process (FDP)
-  model = "FDP"; cat("\n ",model," ... ")
+  model = "FDP";#cat("\n ",model," ... ")
   ## i) Parameter estimation
   if(runMCMC){
     cat("MCMC fit \n")
@@ -1417,7 +1418,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
     gamma = mean(gammas[(Niter/2):Niter])
     Lambda = mean(Lambdas[(Niter/2):Niter])
   } else if(runMAP){
-    cat("MAP fit ","\n")
+    # cat("MAP fit ","\n")
     start_params <- c(gamma = 0.1, Lambda = Kn)
     fit <- optim(par = start_params, fn = lpost_FD, 
                  n = n, Kn = Kn, data_obs = data_obs, M_max = M_max, hy = hy_FDP, # extra parameters
@@ -1426,7 +1427,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
     gamma = fit$par[1]
     Lambda = fit$par[2]
   } else if(runEB){
-    cat("EB fit \n")
+    # cat("EB fit \n")
     start_params <- c(gamma = 0.1, Lambda = Kn)
     fit <- optim(par = start_params, fn = llik_FD, 
                  n = n, Kn = Kn, data_obs = data_obs, M_max = M_max,# extra parameters
@@ -1443,7 +1444,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   ubFDP = exp(compute_log_UBMarkov_FD( Rmax, gamma, Lambda, Kn, n, alpha, M_max ))
   ubFDP = min(ubFDP,1)
   #e) Dirichlet-Multinomial (DirMulti)
-  model = "DirMulti"; cat("\n ",model," ... ")
+  model = "DirMulti"; #at("\n ",model," ... ")
   ## i) Parameter estimation
   if(runMCMC){
     cat("MCMC fit \n")
@@ -1457,7 +1458,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
     gammas = fit$gamma_mcmc
     gamma = mean(gammas[(Niter/2):Niter])
   } else if(runMAP){
-    cat("MAP fit \n")
+    # cat("MAP fit \n")
     start_params <- c(gamma = 0.5)
     fit <- optim(par = start_params, fn = lpost_DirMult,
                  n = n, M = M, data = n_i, hy = hy_DM, # extra parameters
@@ -1465,7 +1466,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
                  lower = c(1e-10), upper = c(Inf))
     gamma = fit$par[1]
   } else if(runEB){
-    cat("EB fit \n")
+    # cat("EB fit \n")
     start_params <- c(gamma = 0.5)
     fit <- optim(par = start_params, fn = llik_DirMult,
                  n = n, M = M, data = n_i, # extra parameters
