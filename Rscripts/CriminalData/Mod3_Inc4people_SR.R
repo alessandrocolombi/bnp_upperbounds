@@ -26,9 +26,9 @@ width = 12; height = 6
 cex.labels <- cex.lab <- 2
 cex.axis <- 2
 cex.legend <- 1.5
-mycol = c("darkblue","darkred","darkorange","lightblue")
+mycol = c("darkred","darkblue","lightblue","darkorange","darkgreen")
 mycol2 = c("black","lightblue")
-lgd_names = c("Freq","PYP","FDP","Dir-Multi")
+lgd_names = c("IBP","MBP","FB","Bounded","Unbounded")
 
 
 # Load --------------------------------------------------------------------
@@ -56,8 +56,12 @@ seed0 = 4224
 num_cores = 34 # <--- modify here
 Nrep = 50 # <--- modify here
 
+var_fct = 100
 # Run) Mmax-based  --------------------------------------------------------
-res = SRinc_grid( eps_grid, data, nstart, Nrep, num_cores, seed0, alpha)
+cat("\n Run stopping rule \n")
+res = SRinc_grid(eps_grid=eps_grid, data=data, nstart=nstart, 
+                 Nrep=Nrep, num_cores=num_cores, seed0=seed0, 
+                 alpha=alpha, var_fct=var_fct)
 save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
@@ -67,9 +71,7 @@ save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 # Plot --------------------------------------------------------------------
 stop_here = TRUE
 ltype = c(1,1,1,1)
-mycol = c("red","darkblue","darkorange","chocolate")
-ygrids = vector("list",4)
-ygrids[[1]]<-ygrids[[2]]<-ygrids[[3]]<-ygrids[[4]]<-eps_grid
+ygrid = eps_grid
 if(!stop_here){
   load("save/Mod3_Inc4People_SRMmax.Rdat")
   # load("save/Mod2_Inc4Meetings_SRMcov.Rdat")
@@ -86,7 +88,6 @@ if(!stop_here){
   #   dim = c(3, 4, 70)
   # )# 3 x 4 x length(eps_grid)
   res_all = res_arr
-  res_all = res_all[,-2,]
   
   if(save_img)
     pdf("img/Mod3_Inc4People_StopR_grid.pdf", width = width, height = height)
@@ -95,15 +96,34 @@ if(!stop_here){
        xlim = range(eps_grid), ylim = c(0,n), 
        xlab = expression(epsilon) )
   # xlab = paste0(expression(epsilon)," / 1 - coverage") )
-  for(i in 1:4){
-    points(y = res_all[2,i,], x = ygrids[[i]], 
-           type = "l", lty = ltype[i], 
+  for(i in 1:dim(res_all)[2]){
+    points(y = res_all[2,i,], x = ygrid, 
+           type = "l", lty = 1, 
            lwd = 3, col = mycol[i], pch = 16)
   }
-  # abline(v = 0.05, lty = 2, col = "red")
-  legend("bottomleft", c("3IBP","MixBin","Freq.Bdd","Freq.Ubd"), 
-         col = mycol, lty = ltype, lwd = 3)
+  # legend("bottomleft",lgd_names,
+  #        fill = c(mycol), 
+  #        cex = cex.legend, bty = "n", border = NA)
   if(save_img)
     dev.off()
 }
+
+
+
+
+
+
+# Brutta ------------------------------------------------------------------
+ij = 86
+eps_grid[ij]
+res[[ij]]
+
+
+
+
+
+
+
+
+
 
