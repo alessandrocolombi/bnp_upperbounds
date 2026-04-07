@@ -532,7 +532,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
   ## Run loop up to n_max = n
   ###
   n_max = n
-  ni = 2
+  ni = 10
   for(ni in nstart:(n_max-1)) {
     # Allow for a non-multiple n_max if needed
     remaining <- n_max - ni
@@ -576,8 +576,9 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
     
     ### 5.2 Finite Beta (on observed data) 
     if (!stopped_FB) {
+      cat("\n FB ... ")
       # Param. estimation (Finite Beta)
-      Mguess = 10 * Kobs_i
+      Mguess = 170
       Nj_guess = c(Nj_i, rep(0,Mguess - length(Nj_i) ))
       start_params <- c(a = 1, b = 1)
       fit <- optim(par = start_params, fn = llik_FB,
@@ -591,9 +592,11 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
         ub_FB = 1
       }else{
         ub_FB = exp(compute_log_UBMarkov_FB( Rmax, a_FB, b_FB, n, Kobs_i, Mguess, alpha))
+        cat(" ub_FB = ",ub_FB," ... ")
       }
       ub_FB <- min(1,ub_FB)
       if (!is.na(ub_FB) && ub_FB < eps) {
+        cat("stopped ... ", ni, "\n")
         stopped_FB <- TRUE
         Nstop_FB   <- ni
       }
@@ -601,6 +604,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
     
     ### 5.3 MixBin (on observed data) 
     if (!stopped_MixBin) {
+      # cat("\n MBP ... ")
       # Param. estimation (Mixed Binomial)
       eb_init_BB <- list(alpha = -1, s = 100, Nhat_prime = 500-Kobs_i)
       eb_known_BB <- list()
@@ -620,9 +624,11 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
         ubMixBin = 1
       }else{
         ubMixBin = exp(compute_log_UBMarkov_BeBeMixNBin( Rmax, a_mle, b_mle, ni, Kobs_i, r_nb, p_nb, alpha))
+        # cat(" ubMixBin = ",ubMixBin," ... ")
       }
       ubMixBin <- min(1,ubMixBin)
       if (!is.na(ubMixBin) && ubMixBin < eps) {
+        # cat("stopped ... ", ni, "\n")
         stopped_MixBin <- TRUE
         Nstop_MixBin   <- ni
       }
@@ -632,7 +638,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
     ### 5.4 Freq.Bdd (on observed data) 
     if (!stopped_FreqBdd) {
       b_n <- log(ni)
-      Mguess = 10 * Kobs_i
+      Mguess = 170 #10 * Kobs_i
       Nj_guess = c(Nj_i, rep(0,Mguess - length(Nj_i) ))
       ubFreqBdd <- compute_UB_analytical(ni, Nj_guess, Mguess, b_n, alpha, FALSE)
       ubFreqBdd = min(1,ubFreqBdd); ubFreqBdd = max(0,ubFreqBdd)
@@ -684,7 +690,8 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
     Nstop_FreqUbd <- n_max
   }
   
-  return( c(Nstop_3IBP,Nstop_FB,Nstop_MixBin,Nstop_FreqBdd,Nstop_FreqUbd) )
+  return( c(Nstop_3IBP,Nstop_MixBin,Nstop_FB,
+            Nstop_FreqBdd,Nstop_FreqUbd) )
 }
 
 SRinc_grid = function( eps_grid, data, nstart,
@@ -1352,7 +1359,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   ### Bayesian UB computation
   pval <- tryCatch( MultinomialTest(Nj = data_obs, M = NULL), error = function(e) 1 )
   runEB = ifelse(pval <= 0.05, TRUE, FALSE)
-  runEB = TRUE #<-- force EB here, if needed
+  # runEB = TRUE #<-- force EB here, if needed
   runMAP = !runEB
   if(useMAP == FALSE)
     runMAP = FALSE

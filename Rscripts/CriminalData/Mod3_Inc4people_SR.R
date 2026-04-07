@@ -54,14 +54,15 @@ nstart = 10
 
 seed0 = 4224
 num_cores = 34 # <--- modify here
-Nrep = 50 # <--- modify here
+Nrep = 100 # <--- modify here
 
 var_fct = 100
 # Run) Mmax-based  --------------------------------------------------------
-cat("\n Run stopping rule \n")
+cat("\n Running stopping rule ... ")
 res = SRinc_grid(eps_grid=eps_grid, data=data, nstart=nstart, 
                  Nrep=Nrep, num_cores=num_cores, seed0=seed0, 
                  alpha=alpha, var_fct=var_fct)
+cat("done! Save and conclude \n")
 save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
@@ -70,7 +71,7 @@ save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 
 # Plot --------------------------------------------------------------------
 stop_here = TRUE
-ltype = c(1,1,1,1)
+ltype = 1
 ygrid = eps_grid
 if(!stop_here){
   load("save/Mod3_Inc4People_SRMmax.Rdat")
@@ -114,7 +115,7 @@ if(!stop_here){
 
 
 # Brutta ------------------------------------------------------------------
-ij = 86
+ij = 40
 eps_grid[ij]
 res[[ij]]
 

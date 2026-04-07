@@ -176,7 +176,7 @@ fit <- optim(par = start_params, fn = llik_FB,
 a_FB = fit$par[1]; 
 b_FB = fit$par[2]; 
 
-w_mc_list = lapply(rep(Mguess,1000), function(m) {w = rbeta(n = m, shape1 = a_mle, shape2 = b_mle); w = sort(w,decreasing = TRUE); w[1:xmax]})
+w_mc_list = lapply(rep(Mguess,1000), function(m) {w = rbeta(n = m, shape1 = a_FB, shape2 = b_FB); w = sort(w,decreasing = TRUE); w[1:xmax]})
 mat_FB = do.call(cbind, w_mc_list)
 mat_FB[is.na(mat_FB)] = 0
 qnt_FB = apply(mat_FB, 1, quantile, probs = c(0.025,0.5,0.975), na.rm = TRUE)
@@ -195,20 +195,21 @@ polygon( c(1:xmax, rev(1:xmax)),
          c(qnt_FB[1,1:xmax], rev(qnt_FB[3,1:xmax])),
          col = "#FDE333",
          border = NA) # plot in-sample bands
-points(x = 1:Kn, y = Nj_ordered/n, col = "darkred", pch = 16)
-segments(x0 = (1:Kn), x1 = (1:Kn), 
-         y0 = rep(0,Kn), y1 = Nj_ordered/n, col = "darkred", lwd = 3)
+points(x = 1:Kn, y = Nj_ordered/n, col = "darkred", pch = 16, cex = 0.5)
+# segments(x0 = (1:Kn), x1 = (1:Kn), 
+#          y0 = rep(0,Kn), y1 = Nj_ordered/n, col = "darkred", lwd = 3)
 points(x = (1:xmax)+0.25, y = qnt_FB[2,1:xmax], 
-       col = "black", pch = 4)
-segments(x0 = (1:xmax)+0.25, x1 = (1:xmax)+0.25,
-         y0 = rep(0,xmax), y1 = qnt_FB[2,1:xmax], 
-         col = "black", lwd = 1, lty = 2)
+       col = "black", pch = 4, cex = 0.5)
+# segments(x0 = (1:xmax)+0.25, x1 = (1:xmax)+0.25,
+#          y0 = rep(0,xmax), y1 = qnt_FB[2,1:xmax], 
+#          col = "black", lwd = 1, lty = 2)
 if(save_img)
   dev.off()
 
 ## ii) Upper bound computation (FB)
 ubFB = exp(compute_log_UBMarkov_FB( Rmax, a_FB, b_FB, n, Kn, Mguess, alpha))
 ubFB = min(ubFB,1)
+ubFB
 
 # Missing mass analysis ------------------------------------------------------------------
 ## Freq ------------------------------------------------------------
