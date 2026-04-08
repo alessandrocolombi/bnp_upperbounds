@@ -4,7 +4,7 @@ wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_bocconi = "/home/colombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100,wd_bocconi)
-choose_wd = wd_vec[4] # <--- modify here
+choose_wd = wd_vec[1] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData")
 setwd(wd)
 
@@ -58,12 +58,12 @@ Nrep = 100 # <--- modify here
 
 var_fct = 100
 # Run) Mmax-based  --------------------------------------------------------
-cat("\n Running stopping rule ... ")
-res = SRinc_grid(eps_grid=eps_grid, data=data, nstart=nstart, 
-                 Nrep=Nrep, num_cores=num_cores, seed0=seed0, 
-                 alpha=alpha, var_fct=var_fct)
-cat("done! Save and conclude \n")
-save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
+# cat("\n Running stopping rule ... ")
+# res = SRinc_grid(eps_grid=eps_grid, data=data, nstart=nstart, 
+#                  Nrep=Nrep, num_cores=num_cores, seed0=seed0, 
+#                  alpha=alpha, var_fct=var_fct)
+# cat("done! Save and conclude \n")
+# save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
@@ -91,7 +91,7 @@ if(!stop_here){
   res_all = res_arr
   
   if(save_img)
-    pdf("img/Mod3_Inc4People_StopR_grid.pdf", width = width, height = height)
+    pdf("img/Crim4features_StopR_grid.pdf", width = width, height = height)
   par(mfrow = c(1,1),bty = "l",  mgp=c(1.5,0.5,0), mar = c(2.5,2.5,1,0), las = 1, cex = 2)
   plot(0,0,type = "n", main = "", ylab = "Nstop",
        xlim = range(eps_grid), ylim = c(0,n), 
@@ -102,9 +102,9 @@ if(!stop_here){
            type = "l", lty = 1, 
            lwd = 3, col = mycol[i], pch = 16)
   }
-  # legend("bottomleft",lgd_names,
-  #        fill = c(mycol), 
-  #        cex = cex.legend, bty = "n", border = NA)
+  legend("bottomleft",lgd_names,
+         fill = c(mycol),
+         cex = cex.legend, bty = "n", border = NA)
   if(save_img)
     dev.off()
 }

@@ -301,7 +301,7 @@ img_fld = paste0("img/SS_features_Mfix_")
 
 ## Coverage ----------------------------------------------------------------
 
-save_cov = TRUE
+save_cov = FALSE
 
 ii = 1
 for(ii in 1:length(experiments)){
@@ -377,12 +377,12 @@ Tables[[2]]
 Tables[[3]]
 
 ## CI length ---------------------------------------------------------------
-ii = 3
+ii = 1
 for(ii in 1:length(experiments)){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 1
+  jj = 2
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
@@ -396,8 +396,8 @@ for(ii in 1:length(experiments)){
     
     # Plot
     oracle = sapply(ExpRes_list, function(x) quantile(x[,1], 1-alpha))
-    ExpRes_qnt = lapply(ExpRes_list, function(x) apply(x[,c(2:5)],2,quantile,probs = c(0.025,0.5,0.975)) )
-    ExpRes_qnt <- simplify2array(ExpRes_qnt) # 3 x 5 x LNgrid
+    ExpRes_qnt = lapply(ExpRes_list, function(x) apply(x[,c(2:6)],2,quantile,probs = c(0.025,0.5,0.975)) )
+    ExpRes_qnt <- simplify2array(ExpRes_qnt) # 3 x 6 x LNgrid
     
     ## axis labels
     ymax = (11/10) * max(ExpRes_qnt,oracle); ymin = (10/11) * min(ExpRes_qnt,oracle)
@@ -451,7 +451,7 @@ for(ii in igrid){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 1
+  jj = 2
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
@@ -464,9 +464,9 @@ for(ii in igrid){
     load(filename)
     
     # Plot
-    ParEst_mcmc = lapply(ExpRes_list, function(x) x[,c(6:11)] ) # Kn in included here
+    ParEst_mcmc = lapply(ExpRes_list, function(x) x[,c(7:16)] ) # Kn in included here
     ParEst_mcmc <- simplify2array(ParEst_mcmc) # Nrep x Nparams x LNgrid
-    params_names = c(colnames(ExpRes_list[[1]])[6:11])
+    params_names = c(colnames(ExpRes_list[[1]])[7:16])
     for(ij in 1:6){
       if(ij < 7){
         xx = ParEst_mcmc[,ij,]
@@ -514,3 +514,35 @@ for(ii in igrid){
 
 
 
+
+
+
+## Brutta ------------------------------------------------------------------
+n = 500
+ii = 1
+jj = 2
+
+name = names(experiments)[ii]
+Ncases = length(experiments[[ii]])
+cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
+params = experiments[[ii]][[jj]]
+trim_params = sapply(params, get_first3digits, 4)
+
+# Load
+filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
+load(filename)
+oracle = sapply(ExpRes_list, function(x) quantile(x[,1], 1-alpha))
+
+idx = 1
+
+UB_MBP = ExpRes_list[[idx]][,5]
+UB_FB  = ExpRes_list[[idx]][,6]
+params_MBP = ExpRes_list[[idx]][,c(10:13,16)]
+params_FB = ExpRes_list[[idx]][,c(14:15,16)]
+
+Mstar_FB = M - params_FB[,3]
+Mstar_FB = apply(params_MBP, 1, function(x){
+  a = x[1]; b = x[2]; m = x[3]; q = x[4]; Kn = x[5]
+  kappa = exp( lgamma(b+n)-lgamma(b)+lgamma(a+b)-lgamma(a+b+n) )
+  (m+Kn) * q * kappa / (1 - q * kappa)
+})

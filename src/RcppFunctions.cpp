@@ -226,9 +226,25 @@ Rcpp::NumericVector compute_logC(const unsigned int& n, const double& scale, con
 	}
 	return (LogC_old);
 }
+
 //------------------------------------------------------------------------------------------------------------------------------------------------------
-//	Stick-Breaking
+//	Sampling functions (with Stick-Breaking)
 //------------------------------------------------------------------------------------------------------------------------------------------------------
+
+// [[Rcpp::export]]
+NumericMatrix r_gamma_mat( const int& Nrow, const int& Ncol, const double& shape, const double& rate, const int& seed)
+{
+	sample::rgamma gamma; 
+	sample::GSL_RNG engine(seed);
+	NumericMatrix res(Nrow,Ncol);
+	for(int i = 0; i < Nrow; i++){
+		for(int j = 0; j < Ncol; j++){
+			res(i,j) = gamma(engine,shape,1.0/rate) ;
+		}
+	}
+	return res;
+}
+
 
 // [[Rcpp::export]]
 NumericMatrix r_SB( const int& Nrep, const int& Natoms, 
@@ -263,6 +279,66 @@ NumericMatrix r_SB( const int& Nrep, const int& Natoms,
 	return res;
 }
 
+#include <Rcpp.h>
+using namespace Rcpp;
+
+
+// [[Rcpp::export]]
+List r_SB_max(const int& Nrep, const int& Natoms_max, 
+							const double& alpha,const double& theta,
+							const int& seed)
+{
+  sample::rbeta beta;
+  sample::GSL_RNG engine(seed);
+
+  if (Nrep <= 0)
+    throw std::runtime_error("Error in r_SB_max: Nrep must be positive");
+  if (Natoms_max < 1)
+    throw std::runtime_error("Error in r_SB_max: Natoms_max must be at least one");
+  if (alpha < 0.0 || alpha >= 1.0)
+    throw std::runtime_error("Error in r_SB_max: alpha must be in [0,1)");
+  if (theta <= -alpha)
+    throw std::runtime_error("Error in r_SB_max: theta must be > -alpha");
+
+  NumericVector pmax(Nrep);
+  IntegerVector n_atoms_used(Nrep);
+  LogicalVector converged(Nrep);
+
+  for (int b = 0; b < Nrep; ++b) {
+    double missing_mass = 1.0;
+    double current_max  = 0.0;
+    bool ok = false;
+    int used = 0;
+
+    for (int i = 0; i < Natoms_max; ++i) {
+      double v = beta(engine, 1.0 - alpha, theta + (i + 1.0) * alpha);
+      double atom = v * missing_mass;
+
+      if (atom > current_max)
+        current_max = atom;
+
+      missing_mass *= (1.0 - v);
+      used = i + 1;
+
+      // If the whole remaining mass is smaller than the largest sampled atom,
+      // then current_max is the true global maximum.
+      if (missing_mass < current_max) {
+        ok = true;
+        break;
+      }
+    }
+
+    pmax[b] = current_max;
+    n_atoms_used[b] = used;
+    converged[b] = ok;
+  }
+
+  return List::create(
+    _["pmax"] = pmax,
+    _["n_atoms_used"] = n_atoms_used,
+    _["converged"] = converged
+  );
+}
 //------------------------------------------------------------------------------------------------------------------------------------------------------
 //	Upper Bound - Oracle
 //------------------------------------------------------------------------------------------------------------------------------------------------------
