@@ -4,7 +4,7 @@ wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_bocconi = "/home/colombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100,wd_bocconi)
-choose_wd = wd_vec[1] # <--- modify here
+choose_wd = wd_vec[4] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData")
 setwd(wd)
 
@@ -27,7 +27,7 @@ cex.axis <- 2
 cex.legend <- 1.5
 mycol = c("darkblue","darkred","darkorange","lightblue")
 mycol2 = c("black","lightblue")
-lgd_names = c("Freq","PYP","FDP","Dir-Multi")
+lgd_names = c("Freq","PYP","FDP","FD")
 
 # Load --------------------------------------------------------------------
 
@@ -56,10 +56,10 @@ Nrep = 50
 
 
 # Run) Mmax-based  --------------------------------------------------------
-# res = SRabu_grid( eps_grid=eps_grid, data=data, nstart=nstart,
-#                   Mguess=Mguess, var_prior=var_prior,
-#                   Nrep=Nrep, num_cores=num_cores, seed0=seed0, alpha=alpha, M_max=M_max)
-# save(res, file = "save/Mod1Abu_SRMmax.Rdat")
+res = SRabu_grid( eps_grid=eps_grid, data=data, nstart=nstart,
+                  Mguess=Mguess, var_prior=var_prior,
+                  Nrep=Nrep, num_cores=num_cores, seed0=seed0, alpha=alpha, M_max=M_max)
+save(res, file = "save/Mod1Abu_SRMmax_pypEB.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
@@ -104,7 +104,7 @@ if(!stop_here){
   
   if(save_img)
     pdf("img/Mod1Abu_StopR_grid.pdf", width = width, height = height)
-  par( mfrow = c(1,1), mar = c(3.5,4.25,1,1), mgp=c(2.75,1,0), bty = "l", las = 1, cex.lab = cex.lab )
+  par( mfrow = c(1,1), mar = c(3.5,4.5,1,1), mgp=c(3,1,0), bty = "l", las = 1, cex.lab = cex.lab )
   plot(0,0,  yaxt = "n", xaxt = "n",
        xlab = "", ylab = "N stop",
        xlim = xlim_plot , ylim = ylim_plot, 

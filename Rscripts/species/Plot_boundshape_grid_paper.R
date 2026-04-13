@@ -149,10 +149,8 @@ plot_pd_panel = function(idx_sigma, ymax = 12.5) {
     }
     lines(theta_grid, 1000 * ub_vals, lwd = lwd_curve, col = curve_cols_pd[ii])
   }
-  if (idx_sigma == 1) {
     legend("topright", legend = pd_legend, col = curve_cols_pd, lwd = lwd_curve,
            bty = "n", cex = 0.75)
-  }
   axis(side = 1, at = x_ticks, labels = x_tick_labels, cex.axis = cex_axis)
   mtext(expression(theta), side = 1, line = 1.5, cex = cex_xlab)
 }

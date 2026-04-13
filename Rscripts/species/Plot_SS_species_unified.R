@@ -21,15 +21,16 @@ cex_plot = 2.3  # overall expansion factor for plot text/elements
 cex_axis = 2    # size of axis tick labels
 cex_lab  = 2    # size of axis titles
 cex_xlab = 1.5    # size of x-axis titles only
+legend_linewidth = 3  # thickness of legend lines
 mycol = c("Freq" = "darkorange",
           "PD" = "darkred",
           "FDP" = "darkblue",
           "Dir-Multi" = "lightblue")
-lgd_names = c("Oracle", "Freq", "PD", "FDP", "Dir-Multi")
+lgd_names = c("Oracle", "Freq", "PYP", "FDP", "FD")
 alpha <- 0.05
 
 # Choose which grid to plot: "Mfix" or "nfix" -----------------------------
-plot_mode = "nfix" # <--- modify here
+plot_mode = "Mfix" # <--- modify here
 
 if (plot_mode == "Mfix") {
   x_grid = seq(100, 5000, by = 500)
@@ -119,6 +120,9 @@ panel_data = lapply(seq_len(nrow(panel_specs)), function(i) {
 oracle_df = do.call(rbind, lapply(panel_data, `[[`, "oracle"))
 methods_df = do.call(rbind, lapply(panel_data, `[[`, "methods"))
 
+methods_df$method[methods_df$method == "PD"] = "PYP"
+methods_df$method[methods_df$method == "Dir-Multi"] = "FD"
+
 oracle_df$method = factor(oracle_df$method, levels = lgd_names)
 methods_df$method = factor(methods_df$method, levels = lgd_names)
 oracle_df$row_label = factor(oracle_df$row_label, levels = levels(panel_specs$row_label))
@@ -148,12 +152,20 @@ gg = ggplot() +
     cols = vars(col_id)
   ) +
   scale_color_manual(
-    values = c("Oracle" = "black", mycol),
+    values = c("Oracle" = "black",
+               "Freq" = unname(mycol["Freq"]),
+               "PYP" = unname(mycol["PD"]),
+               "FDP" = unname(mycol["FDP"]),
+               "FD" = unname(mycol["Dir-Multi"])),
     breaks = lgd_names,
     name = NULL
   ) +
   scale_fill_manual(
-    values = c("Oracle" = "black", mycol),
+    values = c("Oracle" = "black",
+               "Freq" = unname(mycol["Freq"]),
+               "PYP" = unname(mycol["PD"]),
+               "FDP" = unname(mycol["FDP"]),
+               "FD" = unname(mycol["Dir-Multi"])),
     breaks = lgd_names,
     name = NULL
   ) +
@@ -168,7 +180,11 @@ gg = ggplot() +
   ) +
   guides(
     fill = "none",
-    color = guide_legend(nrow = 1, byrow = TRUE)
+    color = guide_legend(
+      nrow = 1,
+      byrow = TRUE,
+      override.aes = list(linewidth = legend_linewidth)
+    )
   ) +
   theme_bw(base_size = 13 * cex_plot) +
   theme(

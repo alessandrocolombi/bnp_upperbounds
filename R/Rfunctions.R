@@ -1368,7 +1368,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
   #c) Poisson-Dirichlet (PD)
   model = "PD"; #cat("\n ",model," ... ")
   ## i) Parameter estimation
-  if(FALSE){
+  if(runMCMC){
     cat("MCMC fit \n")
     init_val = c(0.5,Kn)
     hy_prior = c(a_sigma,b_sigma,a_theta,b_theta) 
@@ -1381,7 +1381,7 @@ UB_fit = function(n,Kn,n_i,data_obs,Mmax,M,
     thetas = fit$theta_mcmc
     sigma  = mean(sigmas[(Niter/2):Niter])
     theta = mean(thetas[(Niter/2):Niter])
-  } else if(FALSE){
+  } else if(runMAP){
     # cat("MAP fit \n")
     start_params <- c(alpha = 0.5, theta = 1)
     fit <- optim(par = start_params, fn = lpost_pyp, 
