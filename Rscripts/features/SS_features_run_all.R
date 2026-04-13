@@ -51,6 +51,19 @@ var_prior = 10
 var_fct = 100
 parallel = TRUE # <---
 
+make_param_tag = function(params) {
+  if (length(params) == 1 && is.na(params)) {
+    return("NA")
+  }
+  fmt_one = function(x) {
+    sx = format(x, scientific = FALSE, trim = TRUE)
+    sx = gsub("\\.", "p", sx)
+    sx = gsub("-", "m", sx)
+    sx
+  }
+  paste(vapply(params, fmt_one, character(1)), collapse = "_")
+}
+
 # n fix -----------------------------------------------------------------
 n = 2000
 Mmin_grid = 100; Mmax_grid = 10000
@@ -70,9 +83,7 @@ for(ii in igrid){
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     run_obj <- Map(function(m, s) list(M = m, seed = s),Mgrid, seeds)
     
@@ -86,6 +97,8 @@ for(ii in igrid){
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
     if(save_exp)
       save(ExpRes_list,file = filename)
+    cat("Finished n-fix run:", name, "| params =", trim_params,
+        "| saved to", filename, "\n")
   }
 }
 
@@ -108,13 +121,11 @@ for(ii in igrid){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 4
+  jj = 1
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     run_obj <- Map(function(n, s) list(N = n, seed = s),Ngrid, seeds)
     ExpRes_list = lapply( run_obj,
@@ -127,6 +138,8 @@ for(ii in igrid){
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
     if(save_exp)
       save(ExpRes_list,file = filename)
+    cat("Finished M-fix run:", name, "| params =", trim_params,
+        "| saved to", filename, "\n")
   }
 }
 
