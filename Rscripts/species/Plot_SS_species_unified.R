@@ -15,8 +15,12 @@ suppressWarnings(suppressPackageStartupMessages(library(grid)))
 
 # Plot options -------------------------------------------------------------
 save_img = TRUE
-img_width = 14
+img_width = 18
 img_height = 10
+cex_plot = 2.3  # overall expansion factor for plot text/elements
+cex_axis = 2    # size of axis tick labels
+cex_lab  = 2    # size of axis titles
+cex_xlab = 1.5    # size of x-axis titles only
 mycol = c("Freq" = "darkorange",
           "PD" = "darkred",
           "FDP" = "darkblue",
@@ -25,7 +29,7 @@ lgd_names = c("Oracle", "Freq", "PD", "FDP", "Dir-Multi")
 alpha <- 0.05
 
 # Choose which grid to plot: "Mfix" or "nfix" -----------------------------
-plot_mode = "Mfix" # <--- modify here
+plot_mode = "nfix" # <--- modify here
 
 if (plot_mode == "Mfix") {
   x_grid = seq(100, 5000, by = 500)
@@ -35,7 +39,7 @@ if (plot_mode == "Mfix") {
   img_name = "img/SS_species_unified_Mfix.pdf"
 } else if (plot_mode == "nfix") {
   x_grid = seq(50, 1000, by = 50)
-  x_breaks = seq(100, 900, by = 100)
+  x_breaks = c(100, 300, 500, 700, 900)
   x_lab = "M"
   save_name_base = "save/SS_species_nfixMAP_"
   img_name = "img/SS_species_unified_nfix.pdf"
@@ -166,7 +170,7 @@ gg = ggplot() +
     fill = "none",
     color = guide_legend(nrow = 1, byrow = TRUE)
   ) +
-  theme_bw(base_size = 13) +
+  theme_bw(base_size = 13 * cex_plot) +
   theme(
     panel.grid.major = element_line(color = "gray90", linewidth = 0.3),
     panel.grid.minor = element_blank(),
@@ -174,13 +178,20 @@ gg = ggplot() +
     strip.background = element_blank(),
     strip.placement = "outside",
     strip.text.x = element_blank(),
-    strip.text.y.right = element_text(angle = 270, face = "bold", size = 12),
-    axis.title.x = element_text(size = 12),
-    axis.title.y = element_text(size = 12),
+    strip.text.y.right = element_text(angle = 270, face = "bold", size = 12 * cex_plot),
+    axis.text.x = element_text(size = 11 * cex_axis),
+    axis.text.y = element_text(size = 11 * cex_axis),
+    axis.title.x = element_text(size = 12 * cex_xlab),
+    axis.title.y = element_text(size = 12 * cex_lab),
     legend.position = "bottom",
     legend.direction = "horizontal",
-    legend.text = element_text(size = 11)
+    legend.text = element_text(size = 11 * cex_plot)
   )
+
+if (plot_mode == "Mfix") {
+  gg = gg +
+    scale_y_log10(labels = label_number())
+}
 
 if (save_img) {
   ggsave(
