@@ -34,9 +34,9 @@ mycol2 = c("black","lightblue")
 lgd_names = c("Unbounded","Bounded","IBP","MBP","FB")
 
 # Options -----------------------------------------------------------------
-params_zipfs  = list(0.25,0.5,1.2)
+params_zipfs  = list(0.85,1.02,1.2)
 params_geom   = list(0.005,0.1,0.25)
-params_const  = list(2,20,1000)
+params_const  = list(2,1000,5000)
 experiments   = list("Zipfs"   = params_zipfs,
                      "Geom"    = params_geom,
                      "Constant" = params_const)
