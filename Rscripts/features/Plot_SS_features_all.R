@@ -21,10 +21,39 @@ source("../../../BinomialCIs/R/Rfunctions.R")
 Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 
+compute_ab_beta = function(m, v, tol = sqrt(.Machine$double.eps) ) 
+{
+  if (length(m) != 1 || length(v) != 1) 
+    stop("m and v must be scalars")
+  if (!is.finite(m) || !is.finite(v)) 
+    stop("m and v must be finite")
+  if (m <= 0 || m >= 1) 
+    stop("m must satisfy 0 < m < 1")
+  if (v <= 0) 
+    stop("v must satisfy v > 0")
+  
+  vmax = m * (1 - m)
+  
+  if (v >= vmax) 
+    stop("Need v < m*(1-m) for a proper Beta distribution")
+  
+  # detect near-boundary regime: a+b very close to 0
+  if ((vmax - v) <= tol * vmax) {
+    warning("v is extremely close to m*(1-m): a and b are near 0 and numerically unstable")
+  }
+  
+  kappa = (vmax - v) / v
+  a = m * kappa
+  b = (1 - m) * kappa
+  
+  c(a = a, b = b)
+}
+
+
 # Custom functions --------------------------------------------------------
 
 # Plot options ------------------------------------------------------------------
-save_img = TRUE
+save_img = FALSE
 width = 12; height = 6
 cex.labels <- cex.lab <- 2
 cex.axis <- 2
@@ -34,22 +63,93 @@ mycol2 = c("black","lightblue")
 lgd_names = c("oracle","Bounded","Unbounded","IBP","MBP","FB")
 
 # Options -----------------------------------------------------------------
-params_zipfs  = list(0.25,0.5,1.2)
+params_zipfs  = list(0.85,1.02,1.2)
 params_geom   = list(0.005,0.1,0.25)
-params_const  = list(2,20,1000)
+params_const  = list(2,1000,5000)
 experiments   = list("Zipfs"   = params_zipfs,
                      "Geom"    = params_geom,
                      "Constant" = params_const)
 
 alpha <- alfa <- 0.05
 num_cores = 33 # <---
-Nrep = 100 # <---
+Nrep = 500 # <---
 Rmax = 100; RmaxFD = 50
 seed0 = 42
 set.seed(seed0)
 var_prior = 10
 var_fct = 100
 parallel = TRUE
+
+format_cov_triplets = function(x, digits = 2) {
+  apply(x, 1, function(row_vals) {
+    vals = formatC(row_vals, format = "f", digits = digits)
+    paste(vals, collapse = " / ")
+  })
+}
+
+write_latex_cov_table = function(tab, row_values, row_name, caption = "", label, file) {
+  nr = nrow(tab)
+  nc = ncol(tab)
+  n_methods = 5
+  n_cases = nc / n_methods
+  if (abs(n_cases - round(n_cases)) > .Machine$double.eps^0.5) {
+    stop("Table does not have a multiple of 5 columns.")
+  }
+  n_cases = as.integer(n_cases)
+  method_labels = c("Bdd", "Ubd", "IBP", "MBP", "FB")
+  body_cols = lapply(seq_len(n_methods), function(j) {
+    idx = seq(j, nc, by = n_methods)
+    format_cov_triplets(tab[, idx, drop = FALSE])
+  })
+  body_df = data.frame(
+    row_value = row_values,
+    Bdd = body_cols[[1]],
+    Ubd = body_cols[[2]],
+    IBP = body_cols[[3]],
+    MBP = body_cols[[4]],
+    FB = body_cols[[5]],
+    stringsAsFactors = FALSE
+  )
+  lines = c(
+    "\\begin{table}[ht!]",
+    "    \\centering",
+    "    \\small",
+    "    \\begin{tabular}{r c c c c c}",
+    "    \\hline",
+    paste0("    $", row_name, "$ & ", paste(method_labels, collapse = " & "), " \\\\"),
+    "    \\hline"
+  )
+  for (i in seq_len(nr)) {
+    lines = c(lines, paste0(
+      "    ", body_df$row_value[i], " & ",
+      paste(body_df[i, method_labels], collapse = " & "),
+      " \\\\"
+    ))
+  }
+  lines = c(
+    lines,
+    "    \\hline",
+    "    \\end{tabular}",
+    paste0("    \\caption{", caption, "}"),
+    paste0("    \\label{", label, "}"),
+    "\\end{table}"
+  )
+  writeLines(lines, con = file)
+  cat(paste(lines, collapse = "\n"), "\n\n")
+}
+
+make_param_tag = function(params) {
+  if (length(params) == 1 && is.na(params)) {
+    return("NA")
+  }
+  fmt_one = function(x) {
+    sx = format(x, scientific = FALSE, trim = TRUE)
+    sx = gsub("\\.", "p", sx)
+    sx = gsub("-", "m", sx)
+    sx
+  }
+  paste(vapply(params, fmt_one, character(1)), collapse = "_")
+}
 
 # n fix -------------------------------------------------------------------
 
@@ -65,7 +165,7 @@ img_fld = paste0("img/SS_features_nfix_")
 
 ## Coverage ----------------------------------------------------------------
 
-save_cov = TRUE
+save_cov = FALSE
 
 ii = 1
 igrid = c(1:3)
@@ -76,9 +176,7 @@ for(ii in igrid){
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     # Load
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
@@ -116,9 +214,7 @@ for(ii in igrid){
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     # Load
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
@@ -137,9 +233,22 @@ for(ii in igrid){
 }
 idx_rows = seq(1,LMgrid,by = 3)
 Tables = lapply(Tables, function(x) x[idx_rows,])
-Tables[[1]]#[,-c(4,8,12,16)]
+Tables[[1]]
 Tables[[2]]
 Tables[[3]]
+
+dir.create("tables", showWarnings = FALSE)
+for (i in seq_along(Tables)) {
+  exp_name = tolower(names(experiments)[igrid[i]])
+  write_latex_cov_table(
+    tab = Tables[[i]],
+    row_values = Mgrid[idx_rows],
+    row_name = "M",
+    caption = "",
+    label = paste0("tab:Exp1_features_", exp_name),
+    file = paste0("tables/SS_features_nfix_", exp_name, ".tex")
+  )
+}
 
 ## CI length ---------------------------------------------------------------
 ii = 1
@@ -151,9 +260,7 @@ for(ii in igrid){
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     # Load
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
@@ -216,13 +323,11 @@ for(ii in igrid){
   
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
-  jj = 2
+  jj = 1
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     # Load
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
@@ -301,7 +406,7 @@ img_fld = paste0("img/SS_features_Mfix_")
 
 ## Coverage ----------------------------------------------------------------
 
-save_cov = FALSE
+save_cov = TRUE
 
 ii = 1
 for(ii in 1:length(experiments)){
@@ -311,9 +416,7 @@ for(ii in 1:length(experiments)){
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     # Load
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
@@ -351,9 +454,7 @@ for(ii in 1:3){
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     # Load
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
@@ -376,6 +477,19 @@ Tables[[1]]
 Tables[[2]]
 Tables[[3]]
 
+dir.create("tables", showWarnings = FALSE)
+for (i in seq_along(Tables)) {
+  exp_name = tolower(names(experiments)[i])
+  write_latex_cov_table(
+    tab = Tables[[i]],
+    row_values = Ngrid[idx_rows],
+    row_name = "n",
+    caption = "",
+    label = paste0("tab:Exp1_features_Mfix_", exp_name),
+    file = paste0("tables/SS_features_Mfix_", exp_name, ".tex")
+  )
+}
+
 ## CI length ---------------------------------------------------------------
 ii = 1
 for(ii in 1:length(experiments)){
@@ -386,9 +500,7 @@ for(ii in 1:length(experiments)){
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     # Load
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
@@ -455,9 +567,7 @@ for(ii in igrid){
   for(jj in 1:Ncases){
     cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
     params = experiments[[ii]][[jj]]
-    trim_params = sapply(params, get_first3digits, 4)
-    if(length(trim_params)>1)
-      trim_params = paste0(trim_params[1],"_",trim_params[2])
+    trim_params = make_param_tag(params)
     
     # Load
     filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
@@ -518,31 +628,122 @@ for(ii in igrid){
 
 
 ## Brutta ------------------------------------------------------------------
-n = 500
+n = 2000
 ii = 1
-jj = 2
+jj = 1
+idx_keep = 3:5
+Mgrid_brutta = seq(100, 10000, by = 500)
+Mvals_brutta = Mgrid_brutta[idx_keep]
+save_name_base = paste0("save/SS_features_nfix_")
 
 name = names(experiments)[ii]
 Ncases = length(experiments[[ii]])
 cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
 params = experiments[[ii]][[jj]]
-trim_params = sapply(params, get_first3digits, 4)
+trim_params = make_param_tag(params)
 
 # Load
 filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
 load(filename)
-oracle = sapply(ExpRes_list, function(x) quantile(x[,1], 1-alpha))
 
-idx = 1
-
-UB_MBP = ExpRes_list[[idx]][,5]
-UB_FB  = ExpRes_list[[idx]][,6]
-params_MBP = ExpRes_list[[idx]][,c(10:13,16)]
-params_FB = ExpRes_list[[idx]][,c(14:15,16)]
-
-Mstar_FB = M - params_FB[,3]
-Mstar_FB = apply(params_MBP, 1, function(x){
-  a = x[1]; b = x[2]; m = x[3]; q = x[4]; Kn = x[5]
-  kappa = exp( lgamma(b+n)-lgamma(b)+lgamma(a+b)-lgamma(a+b+n) )
-  (m+Kn) * q * kappa / (1 - q * kappa)
+Brutta_FB = lapply(idx_keep, function(idx) {
+  x = ExpRes_list[[idx]]
+  M_val = Mgrid_brutta[idx]
+  data.frame(
+    M = M_val,
+    Kn = x[,16],
+    Mstar = as.integer(M_val-x[,16]),
+    p_Mstar_not0 = as.integer(x[,16]<M_val),
+    UB_FB = x[,6],
+    a_FB = x[,14],
+    b_FB = x[,15],
+    Mmax = x[,1]
+  )
 })
+Brutta_MBP = lapply(idx_keep, function(idx) {
+  x = ExpRes_list[[idx]]
+  a = x[,10]; b = x[,11]; m = x[,12]; q = x[,13]; Kn = x[,16]
+  kappa_n = exp( lgamma(b+n)-lgamma(b)+lgamma(a+b)-lgamma(a+b+n) )
+  
+  data.frame(
+    M = Mgrid_brutta[idx],
+    Kn = x[,16],
+    Mstar = (m+Kn) * q*kappa_n/(1 - 1*kappa_n),
+    UB_MBP = x[,5],
+    a_MBP = x[,10],
+    b_MBP = x[,11],
+    m_MBP = x[,12],
+    q_MBP = x[,13],
+    Mmax = x[,1]
+  )
+})
+
+
+Tables[[1]][3:5,10:15]
+lapply(Brutta_FB, function(x) format(round(colMeans(x), 4), scientific = FALSE))
+lapply(Brutta_MBP, function(x) format(round(colMeans(x), 4), scientific = FALSE))
+
+
+
+M_Kn_Mstar_1 = Brutta_FB[[1]][,c(1:3)]
+
+kappa_est = apply(Brutta_FB[[1]][1:10,c(6,7)],1,sum)+1
+Betamu_est = apply(Brutta_FB[[1]][1:10,c(6,7)],1,function(y) y[1]/sum(y))
+
+
+Rmax = 100
+n = 2000
+M = 1100
+Kn_grid_plot = c(1097,1098,1099)
+alpha <- alfa <- 0.05
+tol = sqrt(.Machine$double.eps) 
+
+mean_grid = seq(1e-5,1-1e-5,length.out = 1000)
+kappa_grid = c(kappa_est,100,150,200) 
+mycol_ub = c(
+  gray.colors(length(kappa_est), start = 0.2, end = 0.7),
+  c("#96D84B", "#CDE030", "#FDE333")
+)
+xmax = max(mean_grid); xmin = min(mean_grid)
+xpos = seq(xmin,xmax,length.out = 10)
+xlabs = as.character(floor(xpos*100))
+xlim_plot = c(xmin,xmax)
+
+par( mfrow = c(1,3), mar = c(3.5,6,1.5,1), mgp=c(4.5,1,0), bty = "l", las = 1, cex.lab = 2 )
+for(Kn in Kn_grid_plot){
+  Mmax_selected = Brutta_FB[[1]][Brutta_FB[[1]][,2] == Kn,8]
+  UB_mat = matrix(-1, nrow = length(mean_grid), ncol = length(kappa_grid))
+  
+  for(i in seq_along(mean_grid)){
+    vmax = mean_grid[i] * (1 - mean_grid[i])
+    for(j in seq_along(kappa_grid)){
+      v = vmax/kappa_grid[j] 
+      ab = compute_ab_beta(mean_grid[i],v)
+      UB_mat[i,j] = min(1, exp(compute_log_UBMarkov_FB(Rmax,ab[1],ab[2],n,Kn,M,alpha) ) )
+    }
+  }
+  
+  ymax = (11/10) * max(UB_mat); ymin = (10/11) * min(UB_mat)
+  ypos = seq(ymin,ymax,length.out = 5)
+  ylabs = as.character(round(ypos,2))
+  
+  plot(0,0,  yaxt = "n", xaxt = "n",
+       xlab = "", ylab = "bound",
+       xlim = c(0,0.1) , ylim = c(0,0.01), 
+       main = paste0("Kn = ", Kn),
+       type = "n")
+  grid(lty = 1,lwd = 1, col = "gray90" )
+  axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
+  axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
+  mtext("mean * 100", side = 1, line = 2.5, cex = cex.axis)
+  for(j in seq_along(kappa_grid)){
+    points( x = mean_grid, y = UB_mat[,j], 
+            type = "l", lwd = 5, col = mycol_ub[j] )
+  }
+  abline(h = Mmax_selected, lty = 2, col = "red", lwd = 0.5)
+  abline(v = Betamu_est, lty = 2, col = "black", lwd = 0.5)
+  # legend("topright",
+  #        legend = paste0("kappa = ", format(kappa_grid, scientific = FALSE)),
+  #        col = mycol_ub, lwd = 5,
+  #        bty = "n", cex = cex.legend)
+}

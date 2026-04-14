@@ -4,7 +4,7 @@ wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_bocconi = "/home/colombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100,wd_bocconi)
-choose_wd = wd_vec[4] # <--- modify here
+choose_wd = wd_vec[1] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData")
 setwd(wd)
 
@@ -55,15 +55,12 @@ num_cores = 33 # <---
 Nrep = 50
 
 
-# Run) Mmax-based  --------------------------------------------------------
+# Run - Mmax-based  --------------------------------------------------------
 res = SRabu_grid( eps_grid=eps_grid, data=data, nstart=nstart,
                   Mguess=Mguess, var_prior=var_prior,
                   Nrep=Nrep, num_cores=num_cores, seed0=seed0, alpha=alpha, M_max=M_max)
 save(res, file = "save/Mod1Abu_SRMmax_pypEB.Rdat")
 
-# Run) Coverage-based  --------------------------------------------------------
-# res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)
-# save(res_cov, file = "save/Mod1Abu_SRcov.Rdat")
 
 # Plot --------------------------------------------------------------------
 stop_here = TRUE
@@ -73,22 +70,12 @@ ygrids[[1]]<-ygrids[[2]]<-ygrids[[3]]<-eps_grid
 ygrids[[4]]<- eps_grid #(1-cov_grid)
 
 if(!stop_here){
-  load("save/Mod1Abu_SRMmax.Rdat")
-  # load("save/Mod1Abu_SRcov.Rdat")
+  # load("save/Mod1Abu_SRMmax.Rdat")
+  load("save/Mod1Abu_SRMmax_pypEB.Rdat")
   
   res_list = lapply(res, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
-  # res_cov_list = lapply(res_cov, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
   res_arr <- simplify2array(res_list) # 3 x 3 x length(eps_grid)
-  # res_cov_arr <- simplify2array(res_cov_list) # 3 x 4 x length(eps_grid)
-  # res_all <- array(
-  #   do.call(cbind, lapply(seq_len(dim(res_arr)[3]), function(k)
-  #     cbind(res_arr[,,k], res_cov_arr[,,k])
-  #   )),
-  #   dim = c(3, 4, 70)
-  # )# 3 x 4 x length(eps_grid)
   res_all = res_arr
-  
-  
   
   ## Plot
   ## axis labels
