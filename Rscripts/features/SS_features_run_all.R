@@ -34,7 +34,7 @@ mycol2 = c("black","lightblue")
 lgd_names = c("Unbounded","Bounded","IBP","MBP","FB")
 
 # Options -----------------------------------------------------------------
-params_zipfs  = list(0.85,1.02,1.2)
+params_zipfs  = list(2) #list(1.02,1.2,2)
 params_geom   = list(0.005,0.1,0.25)
 params_const  = list(2,1000,5000)
 experiments   = list("Zipfs"   = params_zipfs,
@@ -74,8 +74,8 @@ seeds = sample(1:999999, size = Nexp)
 save_exp = TRUE # <---
 save_name_base = paste0("save/SS_features_nfix_")
 img_fld = paste0("img/")
-igrid = c(1:3) # <---
-ii = 3
+igrid = c(1) # <---
+ii = 1
 for(ii in igrid){
   name = names(experiments)[ii]
   Ncases = length(experiments[[ii]])
@@ -115,7 +115,7 @@ seeds = sample(1:999999, size = Nexp)
 save_exp = TRUE # <---
 save_name_base = paste0("save/SS_features_Mfix_")
 img_fld = paste0("img/")
-igrid = c(1:3)
+igrid = c(1)
 ii = 1
 for(ii in igrid){
   

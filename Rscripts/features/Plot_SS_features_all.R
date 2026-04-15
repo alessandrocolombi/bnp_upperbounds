@@ -21,35 +21,6 @@ source("../../../BinomialCIs/R/Rfunctions.R")
 Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
 
-compute_ab_beta = function(m, v, tol = sqrt(.Machine$double.eps) ) 
-{
-  if (length(m) != 1 || length(v) != 1) 
-    stop("m and v must be scalars")
-  if (!is.finite(m) || !is.finite(v)) 
-    stop("m and v must be finite")
-  if (m <= 0 || m >= 1) 
-    stop("m must satisfy 0 < m < 1")
-  if (v <= 0) 
-    stop("v must satisfy v > 0")
-  
-  vmax = m * (1 - m)
-  
-  if (v >= vmax) 
-    stop("Need v < m*(1-m) for a proper Beta distribution")
-  
-  # detect near-boundary regime: a+b very close to 0
-  if ((vmax - v) <= tol * vmax) {
-    warning("v is extremely close to m*(1-m): a and b are near 0 and numerically unstable")
-  }
-  
-  kappa = (vmax - v) / v
-  a = m * kappa
-  b = (1 - m) * kappa
-  
-  c(a = a, b = b)
-}
-
-
 # Custom functions --------------------------------------------------------
 
 # Plot options ------------------------------------------------------------------
@@ -406,7 +377,7 @@ img_fld = paste0("img/SS_features_Mfix_")
 
 ## Coverage ----------------------------------------------------------------
 
-save_cov = TRUE
+save_cov = FALSE
 
 ii = 1
 for(ii in 1:length(experiments)){
@@ -627,7 +598,7 @@ for(ii in igrid){
 
 
 
-## Brutta ------------------------------------------------------------------
+## FB fails (Zipfs 0.85 - n2000) ------------------------------------------------------------------
 n = 2000
 ii = 1
 jj = 1
@@ -710,6 +681,133 @@ xlabs = as.character(floor(xpos*100))
 xlim_plot = c(xmin,xmax)
 
 par( mfrow = c(1,3), mar = c(3.5,6,1.5,1), mgp=c(4.5,1,0), bty = "l", las = 1, cex.lab = 2 )
+for(Kn in Kn_grid_plot){
+  Mmax_selected = Brutta_FB[[1]][Brutta_FB[[1]][,2] == Kn,8]
+  UB_mat = matrix(-1, nrow = length(mean_grid), ncol = length(kappa_grid))
+  
+  for(i in seq_along(mean_grid)){
+    vmax = mean_grid[i] * (1 - mean_grid[i])
+    for(j in seq_along(kappa_grid)){
+      v = vmax/kappa_grid[j] 
+      ab = compute_ab_beta(mean_grid[i],v)
+      UB_mat[i,j] = min(1, exp(compute_log_UBMarkov_FB(Rmax,ab[1],ab[2],n,Kn,M,alpha) ) )
+    }
+  }
+  
+  ymax = (11/10) * max(UB_mat); ymin = (10/11) * min(UB_mat)
+  ypos = seq(ymin,ymax,length.out = 5)
+  ylabs = as.character(round(ypos,2))
+  
+  plot(0,0,  yaxt = "n", xaxt = "n",
+       xlab = "", ylab = "bound",
+       xlim = c(0,0.1) , ylim = c(0,0.01), 
+       main = paste0("Kn = ", Kn),
+       type = "n")
+  grid(lty = 1,lwd = 1, col = "gray90" )
+  axis(side = 2, at = ypos, labels = ylabs, cex.axis = cex.axis )
+  axis(side = 1, at = xpos, labels = xlabs, cex.axis = cex.axis )
+  mtext("mean * 100", side = 1, line = 2.5, cex = cex.axis)
+  for(j in seq_along(kappa_grid)){
+    points( x = mean_grid, y = UB_mat[,j], 
+            type = "l", lwd = 5, col = mycol_ub[j] )
+  }
+  abline(h = Mmax_selected, lty = 2, col = "red", lwd = 0.5)
+  abline(v = Betamu_est, lty = 2, col = "black", lwd = 0.5)
+  # legend("topright",
+  #        legend = paste0("kappa = ", format(kappa_grid, scientific = FALSE)),
+  #        col = mycol_ub, lwd = 5,
+  #        bty = "n", cex = cex.legend)
+}
+
+
+## FB fails (Zipfs 0.85 - M5000) ------------------------------------------------------------------
+M = 5000
+Nmin_grid = 500; Nmax_grid = 10000
+Ngrid = seq(Nmin_grid,Nmax_grid,by = 500); LNgrid = length(Ngrid)
+Nexp = length(Ngrid)
+
+ii = 1
+jj = 1
+idx_keep = 15:20
+Ngrid_brutta = Ngrid
+Nvals_brutta = Ngrid_brutta[idx_keep]
+save_name_base = paste0("save/SS_features_Mfix_")
+
+name = names(experiments)[ii]
+Ncases = length(experiments[[ii]])
+cat("\n ---- ",name," ",jj,"/",Ncases," ---- \n")
+params = experiments[[ii]][[jj]]
+trim_params = make_param_tag(params)
+
+# Load
+filename = paste0(save_name_base,name,"_",trim_params,".Rdat")
+load(filename)
+
+Brutta_FB = lapply(idx_keep, function(idx) {
+  x = ExpRes_list[[idx]]
+  N_val = Ngrid_brutta[idx]
+  data.frame(
+    n = N_val,
+    Kn = x[,16],
+    Mstar = as.integer(M-x[,16]),
+    p_Mstar_not0 = as.integer(x[,16]<M),
+    UB_FB = x[,6],
+    a_FB = x[,14],
+    b_FB = x[,15],
+    Mmax = x[,1]
+  )
+})
+Brutta_MBP = lapply(idx_keep, function(idx) {
+  x = ExpRes_list[[idx]]
+  N_val = Ngrid_brutta[idx]
+  a = x[,10]; b = x[,11]; m = x[,12]; q = x[,13]; Kn = x[,16]
+  kappa_n = exp( lgamma(b+N_val)-lgamma(b)+lgamma(a+b)-lgamma(a+b+N_val) )
+  
+  data.frame(
+    n = Ngrid_brutta[idx],
+    Kn = x[,16],
+    Mstar = (m+Kn) * q*kappa_n/(1 - 1*kappa_n),
+    UB_MBP = x[,5],
+    a_MBP = x[,10],
+    b_MBP = x[,11],
+    m_MBP = x[,12],
+    q_MBP = x[,13],
+    Mmax = x[,1]
+  )
+})
+
+
+Tables[[1]][12:15,10:15]
+lapply(Brutta_FB, function(x) format(round(colMeans(x), 4), scientific = FALSE))
+lapply(Brutta_MBP, function(x) format(round(colMeans(x), 4), scientific = FALSE))
+
+
+
+M_Kn_Mstar_1 = Brutta_FB[[6]][,c(1:3)]
+
+kappa_est = apply(Brutta_FB[[1]][1:10,c(6,7)],1,sum)+1
+Betamu_est = apply(Brutta_FB[[1]][1:10,c(6,7)],1,function(y) y[1]/sum(y))
+
+
+Rmax = 100
+n = 80*1e3
+M = 5000
+Kn_grid_plot = c(4999)
+alpha <- alfa <- 0.05
+tol = sqrt(.Machine$double.eps) 
+
+mean_grid = seq(1e-5,1-1e-5,length.out = 1000)
+kappa_grid = c(kappa_est,max(kappa_est)*1.5,max(kappa_est)*2,max(kappa_est)*5) 
+mycol_ub = c(
+  gray.colors(length(kappa_est), start = 0.2, end = 0.7),
+  c("#96D84B", "#CDE030", "#FDE333")
+)
+xmax = max(mean_grid); xmin = min(mean_grid)
+xpos = seq(xmin,xmax,length.out = 10)
+xlabs = as.character(floor(xpos*100))
+xlim_plot = c(xmin,xmax)
+
+par( mfrow = c(1,1), mar = c(3.5,6,1.5,1), mgp=c(4.5,1,0), bty = "l", las = 1, cex.lab = 2 )
 for(Kn in Kn_grid_plot){
   Mmax_selected = Brutta_FB[[1]][Brutta_FB[[1]][,2] == Kn,8]
   UB_mat = matrix(-1, nrow = length(mean_grid), ncol = length(kappa_grid))

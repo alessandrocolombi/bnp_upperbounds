@@ -209,12 +209,6 @@ llik_MixBin <- function(x, n, Kn, data_obs, var_nb) {
   -log_efpfBeBeMixNBin( n, Kn, data_obs, a, b, mu_nb, var_nb )
 }
 
-llik_FB <- function(x, n, Kn, data_obs, M) {
-  a <- x[1]
-  b <- x[2]
-  -log_efpf_FB( n, Kn, M, data_obs, a, b )
-}
-
 
 f_beta <- function(x, n, alfa, Shat){
   if(n <= 0)
@@ -268,6 +262,153 @@ sim_features_generic = function(name,M,param){
   else
     stop("Invalid name")
   
+}
+
+# Finite Beta function - features -----------------------------------------------
+
+llik_FB <- function(x, n, Kn, data_obs, M) {
+  a <- x[1]
+  b <- x[2]
+  -log_efpf_FB( n, Kn, M, data_obs, a, b )
+}
+compute_ab_beta = function(m, v, tol = sqrt(.Machine$double.eps)) {
+  if (length(m) != 1 || length(v) != 1) {
+    stop("m and v must be scalars")
+  }
+  if (!is.finite(m) || !is.finite(v)) {
+    stop("m and v must be finite")
+  }
+  if (m <= 0 || m >= 1) {
+    stop("m must satisfy 0 < m < 1")
+  }
+  if (v <= 0) {
+    stop("v must satisfy v > 0")
+  }
+  
+  vmax = m * (1 - m)
+  if (v >= vmax) {
+    stop("Need v < m*(1-m) for a proper Beta distribution")
+  }
+  if ((vmax - v) <= tol * vmax) {
+    warning("v is extremely close to m*(1-m): a and b are near 0 and numerically unstable")
+  }
+  
+  kappa = (vmax - v) / v
+  a = m * kappa
+  b = (1 - m) * kappa
+  c(a = a, b = b)
+}
+ExpKn_FB = function(n, mu, kappa, M) {
+  if (!is.finite(n) || length(n) != 1 || n < 0) {
+    stop("n must be a non-negative scalar")
+  }
+  if (!is.finite(mu) || length(mu) != 1 || mu <= 0 || mu >= 1) {
+    stop("mu must be a scalar in (0,1)")
+  }
+  if (!is.finite(kappa) || length(kappa) != 1 || kappa <= 1) {
+    stop("kappa must be a scalar > 1")
+  }
+  if (!is.finite(M) || length(M) != 1 || M <= 0) {
+    stop("M must be a positive scalar")
+  }
+  
+  log_ratio = lgamma((kappa - 1) * (1-mu) + n) - lgamma((kappa - 1) * (1-mu)) - lgamma(kappa - 1 + n) + lgamma(kappa - 1)
+  
+  -M * expm1(log_ratio)
+}
+find_mean_mu_FB = function(n, Kn, kappa, M, lower = 1e-8, upper = 1 - 1e-8) {
+  f = function(mu) ExpKn_FB(n = n, mu = mu, kappa = kappa, M = M) - Kn
+  f_lower = f(lower)
+  f_upper = f(upper)
+  
+  if (!is.finite(f_lower) || !is.finite(f_upper)) {
+    stop("Non-finite values encountered while searching for mean_mu")
+  }
+  
+  if (f_lower == 0) {
+    return(lower)
+  }
+  if (f_upper == 0) {
+    return(upper)
+  }
+  
+  if (sign(f_lower) != sign(f_upper)) {
+    return(uniroot(f, interval = c(lower, upper))$root)
+  }
+  
+  obj_lower = f_lower^2
+  obj_upper = f_upper^2
+  if (obj_lower <= obj_upper) {
+    return(lower)
+  }
+  upper
+}
+lpost_FB = function(x, n, Kn, M, data, hy) {
+  mu <- x[1]
+  kappa <- x[2]
+  
+  if (mu < 1e-8 || mu > (1 - 1e-8)) {
+    return(1e8)
+  }
+  if (kappa < 1e-8) {
+    return(1e8)
+  }
+  
+  var <- (mu * (1 - mu)) / kappa
+  a_mu <- hy[1]
+  b_mu <- hy[2]
+  a_kappa <- hy[3]
+  b_kappa <- hy[4]
+  
+  log_prior_mu = (a_mu - 1) * log(mu) + (b_mu - 1) * log(1 - mu)
+  log_prior_kappa = (a_kappa - 1) * log(kappa) - b_kappa * kappa
+  ab = compute_ab_beta(mu, var)
+  llik = log_efpf_FB(n, Kn, M, data, ab[1], ab[2])
+  
+  -(llik + log_prior_mu + log_prior_kappa)
+}
+fit_FB_map = function(n, M, n_i, hy, start_params = c(mu = 0.1, kappa = 100)) {
+  Kn = sum(n_i > 0)
+  fit = optim(
+    par = start_params,
+    fn = lpost_FB,
+    method = "L-BFGS-B",
+    n = n,
+    Kn = Kn,
+    data = n_i,
+    M = M,
+    hy = hy,
+    lower = c(1e-6, 1e-6),
+    upper = c(1 - 1e-6, Inf)
+  )
+  
+  mu_map = fit$par[1]
+  kappa_map = fit$par[2]
+  var_map = (mu_map * (1 - mu_map)) / kappa_map
+  ab_map = compute_ab_beta(mu_map, var_map)
+  
+  list(
+    fit = fit,
+    Kn = Kn,
+    mu_map = mu_map,
+    kappa_map = kappa_map,
+    a_map = unname(ab_map[1]),
+    b_map = unname(ab_map[2])
+  )
+}
+make_hy_FB = function(n, M, Kn, mu_kappa, var_kappa) {
+  if (var_kappa <= 0) {
+    stop("var_kappa must be positive")
+  }
+  
+  mean_mu = find_mean_mu_FB(n = n, Kn = Kn, kappa = mu_kappa, M = M)
+  
+  ab_mu = compute_ab_beta(m = mean_mu, v = mean_mu*(1-mean_mu)/100 )
+  a_mu = unname(ab_mu[1])
+  b_mu = unname(ab_mu[2])
+  a_kappa = mu_kappa * mu_kappa / var_kappa
+  b_kappa = mu_kappa / var_kappa
+  c(a_mu, b_mu, a_kappa, b_kappa)
 }
 
 # Mmax-based stopping rules - species -----------------------------------------------

@@ -5,7 +5,7 @@ wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_bocconi = "/home/colombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100,wd_bocconi)
-choose_wd = wd_vec[4] # <--- modify here
+choose_wd = wd_vec[1] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/features")
 setwd(wd)
 
@@ -21,34 +21,6 @@ Rcpp::sourceCpp("../../src/RcppFunctions.cpp")
 source("../../../BinomialCIs/R/Rfunctions.R")
 Rcpp::sourceCpp("../../../BinomialCIs/src/RcppFunctions.cpp")
 
-
-compute_ab_beta = function(m, v, tol = sqrt(.Machine$double.eps) ) 
-{
-  if (length(m) != 1 || length(v) != 1) 
-    stop("m and v must be scalars")
-  if (!is.finite(m) || !is.finite(v)) 
-    stop("m and v must be finite")
-  if (m <= 0 || m >= 1) 
-    stop("m must satisfy 0 < m < 1")
-  if (v <= 0) 
-    stop("v must satisfy v > 0")
-  
-  vmax = m * (1 - m)
-  
-  if (v >= vmax) 
-    stop("Need v < m*(1-m) for a proper Beta distribution")
-
-  # detect near-boundary regime: a+b very close to 0
-  if ((vmax - v) <= tol * vmax) {
-    warning("v is extremely close to m*(1-m): a and b are near 0 and numerically unstable")
-  }
-  
-  kappa = (vmax - v) / v
-  a = m * kappa
-  b = (1 - m) * kappa
-  
-  c(a = a, b = b)
-}
 
 
 # Plot options ------------------------------------------------------------------
