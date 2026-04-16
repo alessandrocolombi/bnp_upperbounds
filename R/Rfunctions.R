@@ -803,7 +803,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
       if( any(is.na( c(a_FB, b_FB) )) || any(c(a_FB, b_FB) < 0) ){
         ub_FB = 1
       }else{
-        ub_FB = exp(compute_log_UBMarkov_FB( Rmax, a_FB, b_FB, n, Kobs_i, Mguess, alpha))
+        ub_FB = exp(compute_log_UBMarkov_FB( Rmax, a_FB, b_FB, ni, Kobs_i, Mguess, alpha))
         cat(" ub_FB = ",ub_FB," ... ")
       }
       ub_FB <- min(1,ub_FB)

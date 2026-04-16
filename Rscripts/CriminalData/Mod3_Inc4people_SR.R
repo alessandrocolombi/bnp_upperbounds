@@ -74,19 +74,10 @@ ltype = 1
 ygrid = eps_grid
 if(!stop_here){
   load("save/Mod3_Inc4People_SRMmax.Rdat")
-  # load("save/Mod2_Inc4Meetings_SRMcov.Rdat")
   
   res = lapply(res, function(x) {x[which(is.na(x))] = n; x} )
   res_list = lapply(res, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
-  # res_cov_list = lapply(res_cov, function(x) apply(x,2,quantile,probs = c(0.025,0.5,0.975)))
   res_arr <- simplify2array(res_list) # 3 x 3 x length(eps_grid)
-  # res_cov_arr <- simplify2array(res_cov_list) # 3 x 1 x length(eps_grid)
-  # res_all <- array(
-  #   do.call(cbind, lapply(seq_len(dim(res_arr)[3]), function(k)
-  #     cbind(res_arr[,,k], res_cov_arr[,,k])
-  #   )),
-  #   dim = c(3, 4, 70)
-  # )# 3 x 4 x length(eps_grid)
   res_all = res_arr
   
   if(save_img)

@@ -333,7 +333,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
       start_params <- c(a = 1, b = 1)
       fit <- optim(par = start_params, fn = llik_FB,
                    method = "L-BFGS-B",
-                   n = n, Kn = Kobs_i, data_obs = Nj_guess, M=Mguess,
+                   n = ni, Kn = Kobs_i, data_obs = Nj_guess, M=Mguess,
                    lower = c(1e-10, 1e-10), upper = c(Inf, Inf))
       a_FB = fit$par[1]; 
       b_FB = fit$par[2]; 
@@ -341,7 +341,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
       if( any(is.na( c(a_FB, b_FB) )) || any(c(a_FB, b_FB) < 0) ){
         ub_FB = 1
       }else{
-        ub_FB = exp(compute_log_UBMarkov_FB( Rmax, a_FB, b_FB, n, Kobs_i, Mguess, alpha))
+        ub_FB = exp(compute_log_UBMarkov_FB( Rmax, a_FB, b_FB, ni, Kobs_i, Mguess, alpha))
         cat(" ub_FB = ",ub_FB," ... ")
       }
       ub_FB <- min(1,ub_FB)
