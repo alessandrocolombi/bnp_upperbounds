@@ -1,3 +1,74 @@
+# Read files utilities ----------------------------------------------------
+format_cov_triplets = function(x, digits = 2) {
+  apply(x, 1, function(row_vals) {
+    vals = formatC(row_vals, format = "f", digits = digits)
+    paste(vals, collapse = " / ")
+  })
+}
+
+write_latex_cov_table = function(tab, row_values, row_name, caption = "", label, file) {
+  nr = nrow(tab)
+  nc = ncol(tab)
+  n_methods = 5
+  n_cases = nc / n_methods
+  if (abs(n_cases - round(n_cases)) > .Machine$double.eps^0.5) {
+    stop("Table does not have a multiple of 5 columns.")
+  }
+  n_cases = as.integer(n_cases)
+  method_labels = c("Bdd", "Ubd", "IBP", "MBP", "FB")
+  body_cols = lapply(seq_len(n_methods), function(j) {
+    idx = seq(j, nc, by = n_methods)
+    format_cov_triplets(tab[, idx, drop = FALSE])
+  })
+  body_df = data.frame(
+    row_value = row_values,
+    Bdd = body_cols[[1]],
+    Ubd = body_cols[[2]],
+    IBP = body_cols[[3]],
+    MBP = body_cols[[4]],
+    FB = body_cols[[5]],
+    stringsAsFactors = FALSE
+  )
+  lines = c(
+    "\\begin{table}[ht!]",
+    "    \\centering",
+    "    \\small",
+    "    \\begin{tabular}{r c c c c c}",
+    "    \\hline",
+    paste0("    $", row_name, "$ & ", paste(method_labels, collapse = " & "), " \\\\"),
+    "    \\hline"
+  )
+  for (i in seq_len(nr)) {
+    lines = c(lines, paste0(
+      "    ", body_df$row_value[i], " & ",
+      paste(body_df[i, method_labels], collapse = " & "),
+      " \\\\"
+    ))
+  }
+  lines = c(
+    lines,
+    "    \\hline",
+    "    \\end{tabular}",
+    paste0("    \\caption{", caption, "}"),
+    paste0("    \\label{", label, "}"),
+    "\\end{table}"
+  )
+  writeLines(lines, con = file)
+  cat(paste(lines, collapse = "\n"), "\n\n")
+}
+
+make_param_tag = function(params) {
+  if (length(params) == 1 && is.na(params)) {
+    return("NA")
+  }
+  fmt_one = function(x) {
+    sx = format(x, scientific = FALSE, trim = TRUE)
+    sx = gsub("\\.", "p", sx)
+    sx = gsub("-", "m", sx)
+    sx
+  }
+  paste(vapply(params, fmt_one, character(1)), collapse = "_")
+}
 # Gen. Dist. (species) ----------------------------------------------------
 sim_zipfs = function(M,s){
   w = sapply(1:M,function(j) j^(-s))
@@ -719,7 +790,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
     if (!stopped_FB) {
       cat("\n FB ... ")
       # Param. estimation (Finite Beta)
-      Mguess = 170
+      Mguess = 200
       Nj_guess = c(Nj_i, rep(0,Mguess - length(Nj_i) ))
       start_params <- c(a = 1, b = 1)
       fit <- optim(par = start_params, fn = llik_FB,

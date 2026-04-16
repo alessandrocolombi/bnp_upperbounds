@@ -4,7 +4,7 @@ wd_unicatt = "C:/Users/alessandro.colombi/"
 wd_g100 = "/g100/home/userexternal/acolombi/"
 wd_bocconi = "/home/colombi/"
 wd_vec = c(wd_pc,wd_unicatt,wd_g100,wd_bocconi)
-choose_wd = wd_vec[1] # <--- modify here
+choose_wd = wd_vec[4] # <--- modify here
 wd = paste0(choose_wd,"bnp_upperbounds/Rscripts/CriminalData")
 setwd(wd)
 
@@ -47,23 +47,22 @@ set.seed(seed)
 
 # Options  --------------------------------------------------------
 eps_grid = c(0.001, seq(0.1,0.3,length.out =  (34*5-1)) )
-cov_grid = 1 - eps_grid
 alpha = 0.05
 M_max = 200
 nstart = 10
 
 seed0 = 4224
-num_cores = 34 # <--- modify here
-Nrep = 100 # <--- modify here
+num_cores = 33 # <--- modify here
+Nrep = 10 # <--- modify here
 
 var_fct = 100
 # Run) Mmax-based  --------------------------------------------------------
-# cat("\n Running stopping rule ... ")
-# res = SRinc_grid(eps_grid=eps_grid, data=data, nstart=nstart, 
-#                  Nrep=Nrep, num_cores=num_cores, seed0=seed0, 
-#                  alpha=alpha, var_fct=var_fct)
-# cat("done! Save and conclude \n")
-# save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
+cat("\n Running stopping rule ... ")
+res = SRinc_grid(eps_grid=eps_grid, data=data, nstart=nstart,
+                 Nrep=Nrep, num_cores=num_cores, seed0=seed0,
+                 alpha=alpha, var_fct=var_fct)
+cat("done! Save and conclude \n")
+save(res, file = "save/Mod3_Inc4People_SRMmax.Rdat")
 
 # Run) Coverage-based  --------------------------------------------------------
 # res_cov = SRabu_cov_grid( cov_grid, data, nstart, Nrep, num_cores, seed0)

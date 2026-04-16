@@ -31,12 +31,12 @@ lgd_names = c("oracle", "Bdd", "Ubd", "IBP", "MBP", "FB")
 alpha <- 0.05
 
 # Choose which grid to plot: "Mfix" or "nfix" -----------------------------
-plot_mode = "Mfix" # <--- modify here
+plot_mode = "nfix" # <--- modify here
 
 if (plot_mode == "Mfix") {
   x_grid = seq(500, 10000, by = 500)
   x_plot = x_grid / 100
-  x_breaks = c(5, 25, 50, 75, 100)
+  x_breaks = c(5, 25, 50, 75, 90)
   x_lab = "n/100"
   save_name_base = "save/SS_features_Mfix_"
   img_name = "img/SS_features_unified_Mfix.pdf"
@@ -76,7 +76,7 @@ panel_specs = data.frame(
   exp_name = c("Zipfs", "Zipfs", "Zipfs",
                "Geom", "Geom", "Geom",
                "Constant", "Constant", "Constant"),
-  params = I(list(0.85, 1.02, 1.2,
+  params = I(list(1.02, 1.2,2,
                   0.005, 0.1, 0.25,
                   2, 1000, 5000)),
   stringsAsFactors = FALSE
