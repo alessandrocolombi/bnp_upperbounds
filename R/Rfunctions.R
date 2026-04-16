@@ -795,7 +795,7 @@ SRinc_grid_single_run <- function(eps, data, nstart, var_fct, seed, alpha)
       start_params <- c(a = 1, b = 1)
       fit <- optim(par = start_params, fn = llik_FB,
                    method = "L-BFGS-B",
-                   n = n, Kn = Kobs_i, data_obs = Nj_guess, M=Mguess,
+                   n = ni, Kn = Kobs_i, data_obs = Nj_guess, M=Mguess,
                    lower = c(1e-10, 1e-10), upper = c(Inf, Inf))
       a_FB = fit$par[1]; 
       b_FB = fit$par[2]; 
